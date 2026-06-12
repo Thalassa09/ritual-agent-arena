@@ -35,6 +35,7 @@ const AnimatedBackground = () => {
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
       <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
       
+      {/* Large moving orbs */}
       <motion.div
         className="absolute -top-[45%] -left-[25%] w-[1300px] h-[1300px] rounded-full"
         style={{ background: 'radial-gradient(circle at 40% 40%, rgba(197,162,111,0.11) 0%, transparent 65%)' }}
@@ -49,6 +50,7 @@ const AnimatedBackground = () => {
         transition={{ duration: 52, repeat: Infinity, ease: "easeInOut" }}
       />
 
+      {/* Moving horizontal light beams */}
       {Array.from({ length: 6 }).map((_, i) => (
         <motion.div
           key={i}
@@ -59,6 +61,7 @@ const AnimatedBackground = () => {
         />
       ))}
 
+      {/* Floating particles */}
       {Array.from({ length: 28 }).map((_, i) => (
         <motion.div
           key={i}
@@ -66,6 +69,29 @@ const AnimatedBackground = () => {
           style={{ left: `${(i * 6 + 3) % 100}%`, top: `${(i * 9 + 7) % 100}%`, width: i % 4 === 0 ? '4px' : '2px', height: i % 4 === 0 ? '4px' : '2px' }}
           animate={{ y: [0, -260, 0], x: [0, (i % 5 === 0 ? 55 : -42), 0], opacity: [0, 0.65, 0], scale: [0.5, 1.8, 0.5] }}
           transition={{ duration: 16 + (i % 8) * 1.5, repeat: Infinity, delay: i * 0.28, ease: "easeInOut" }}
+        />
+      ))}
+
+      {/* Garis vertikal putih tipis (random) */}
+      {Array.from({ length: 9 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-px bg-white"
+          style={{
+            left: `${12 + (i * 9.5)}%`,
+            top: `${8 + (i % 3) * 12}%`,
+            height: `${180 + (i % 4) * 40}px`,
+            opacity: 0.12 + (i % 3) * 0.04,
+          }}
+          animate={{
+            y: [0, 120, 0],
+            opacity: [0.08, 0.22, 0.08],
+          }}
+          transition={{
+            duration: 18 + (i % 5) * 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
@@ -88,7 +114,6 @@ export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
   
-  // 5 Starter Agents (Power < 85, tanpa X handle)
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
     { id: 1, name: "Shadow Oracle", xHandle: "", wallet: "0x000", power: 83, wins: 12 },
     { id: 2, name: "Void Weaver", xHandle: "", wallet: "0x000", power: 79, wins: 9 },
@@ -200,7 +225,8 @@ export default function RitualAgentArena() {
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
 
-      const power = Math.floor(Math.random() * 13) + 72;
+      // Power random 80-95
+      const power = Math.floor(Math.random() * 16) + 80;
 
       const newAgent: MintedAgent = {
         id: mintedAgents.length + 1,
