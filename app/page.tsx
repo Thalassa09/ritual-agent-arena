@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight } from 'lucide-react';
+import { Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle } from 'lucide-react';
 import { ethers } from 'ethers';
 
 declare global {
@@ -26,39 +26,102 @@ interface MintedAgent {
   xHandle: string;
 }
 
+// Beautiful & Elegant Animated Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.6px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
+      {/* Subtle noise texture */}
+      <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-50" />
       
+      {/* Large elegant glowing orbs */}
       <motion.div
-        className="absolute -top-[30%] -left-[15%] w-[700px] h-[700px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(197,162,111,0.08) 0%, transparent 70%)' }}
-        animate={{ x: [0, 60, -30, 0], y: [0, 40, -20, 0] }}
-        transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
-      />
-      
-      <motion.div
-        className="absolute -bottom-[25%] -right-[10%] w-[650px] h-[650px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(139,115,85,0.07) 0%, transparent 70%)' }}
-        animate={{ x: [0, -50, 35, 0], y: [0, -35, 25, 0] }}
+        className="absolute -top-[35%] -left-[20%] w-[800px] h-[800px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 30% 30%, rgba(197,162,111,0.07) 0%, transparent 60%)' }}
+        animate={{ 
+          x: [0, 70, -40, 0], 
+          y: [0, 50, -25, 0],
+          scale: [1, 1.08, 0.96, 1]
+        }}
         transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
       />
+      
+      <motion.div
+        className="absolute -bottom-[30%] -right-[15%] w-[750px] h-[750px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 70% 70%, rgba(139,115,85,0.06) 0%, transparent 60%)' }}
+        animate={{ 
+          x: [0, -60, 30, 0], 
+          y: [0, -40, 20, 0],
+          scale: [1, 1.06, 0.97, 1]
+        }}
+        transition={{ duration: 38, repeat: Infinity, ease: "easeInOut" }}
+      />
 
-      {Array.from({ length: 12 }).map((_, i) => (
+      {/* Floating elegant lines */}
+      {Array.from({ length: 5 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-[3px] h-[3px] rounded-full bg-[#C5A26F]"
-          style={{ left: `${(i * 9 + 7) % 100}%`, top: `${(i * 13) % 100}%`, opacity: 0.15 + (i % 3) * 0.08 }}
-          animate={{ y: [0, -180, 0], opacity: [0.1, 0.35, 0.1] }}
-          transition={{ duration: 18 + (i % 7), repeat: Infinity, delay: i * 0.6, ease: "easeInOut" }}
+          className="absolute h-[1px] bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-20"
+          style={{
+            left: `${10 + i * 18}%`,
+            top: `${25 + i * 12}%`,
+            width: `${120 + i * 30}px`,
+          }}
+          animate={{
+            x: [0, 80, -40, 0],
+            opacity: [0.1, 0.3, 0.1],
+          }}
+          transition={{
+            duration: 20 + i * 3,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:120px_120px] opacity-40" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:120px_120px] opacity-40" />
+      {/* Soft floating particles */}
+      {Array.from({ length: 14 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-px h-px bg-[#C5A26F] rounded-full"
+          style={{
+            left: `${(i * 11) % 100}%`,
+            top: `${(i * 17) % 100}%`,
+          }}
+          animate={{
+            y: [0, -160, 0],
+            opacity: [0, 0.4, 0],
+            scale: [0.5, 1.5, 0.5],
+          }}
+          transition={{
+            duration: 16 + (i % 5),
+            repeat: Infinity,
+            delay: i * 0.7,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+
+      {/* Very subtle grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:140px_140px] opacity-30" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:140px_140px] opacity-30" />
     </div>
   );
+};
+
+// Random name generator
+const randomNames = [
+  "Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift",
+  "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium",
+  "Obsidian", "Celestia", "Helix", "Orion", "Zenith", "Lunar", "Solstice"
+];
+
+const randomSuffixes = ["Oracle", "Weaver", "Striker", "Knight", "Reaper", "Warden", "Sage", "Hunter", "Lord", "Walker"];
+
+const generateRandomAgent = () => {
+  const name = randomNames[Math.floor(Math.random() * randomNames.length)];
+  const suffix = randomSuffixes[Math.floor(Math.random() * randomSuffixes.length)];
+  const xHandle = (name + suffix).toLowerCase().slice(0, 12);
+  return { name: `${name} ${suffix}`, xHandle };
 };
 
 export default function RitualAgentArena() {
@@ -66,7 +129,6 @@ export default function RitualAgentArena() {
   const [contract, setContract] = useState<any>(null);
   const [agents, setAgents] = useState<any[]>([]);
   
-  // List of minted agents (name + X handle)
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([]);
   
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
@@ -125,6 +187,12 @@ export default function RitualAgentArena() {
     setShowMintModal(false);
   };
 
+  const generateRandomName = () => {
+    const random = generateRandomAgent();
+    setMintName(random.name);
+    setMintX(random.xHandle);
+  };
+
   const mintNewAgent = async () => {
     if (!contract || !mintName.trim() || !mintX.trim()) return;
 
@@ -133,7 +201,6 @@ export default function RitualAgentArena() {
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
 
-      // Add to minted agents list
       const newAgent: MintedAgent = {
         id: mintedAgents.length + 1,
         name: mintName.trim(),
@@ -284,7 +351,6 @@ export default function RitualAgentArena() {
           </div>
         )}
 
-        {/* Agent Roster Header */}
         <div className="flex items-center justify-between mb-8 px-1">
           <div>
             <div className="text-3xl font-semibold tracking-[-1.5px]">Agent Roster</div>
@@ -295,7 +361,6 @@ export default function RitualAgentArena() {
           </button>
         </div>
 
-        {/* Empty State */}
         {agents.length === 0 && (
           <div className="border border-white/10 rounded-3xl p-16 text-center bg-white/[0.015]">
             <div className="mx-auto w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
@@ -303,10 +368,7 @@ export default function RitualAgentArena() {
             </div>
             <div className="text-2xl font-semibold tracking-tight mb-2">No agents yet</div>
             <div className="text-white/50 mb-8">Be the first to mint an agent on Ritual</div>
-            <button 
-              onClick={openMintModal}
-              className="px-8 py-3 rounded-full bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all"
-            >
+            <button onClick={openMintModal} className="px-8 py-3 rounded-full bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all">
               Mint Your First Agent
             </button>
           </div>
@@ -353,7 +415,7 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal */}
+      {/* Mint Modal with Random Button */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
@@ -373,7 +435,15 @@ export default function RitualAgentArena() {
 
               <div className="space-y-5">
                 <div>
-                  <div className="text-xs text-white/50 mb-2 ml-1 tracking-wider">AGENT NAME</div>
+                  <div className="flex items-center justify-between mb-2 ml-1">
+                    <div className="text-xs text-white/50 tracking-wider">AGENT NAME</div>
+                    <button 
+                      onClick={generateRandomName}
+                      className="flex items-center gap-1.5 text-xs text-[#C5A26F] hover:text-white transition-all active:scale-95"
+                    >
+                      <Shuffle className="w-3 h-3" /> Random
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={mintName}
