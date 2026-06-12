@@ -29,91 +29,48 @@ interface MintedAgent {
   wins: number;
 }
 
-// Premium Cinematic Background - Ancient Ritual + Cyber
+// Ultra Beautiful & Visible Premium Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      {/* Base subtle texture */}
-      <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-70" />
-
-      {/* Large elegant moving orbs */}
+      <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
+      
       <motion.div
-        className="absolute -top-[55%] -left-[30%] w-[1500px] h-[1500px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle at 40% 35%, rgba(180,140,85,0.08) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, 200, -100, 0],
-          y: [0, 120, -80, 0],
-          scale: [1, 1.18, 0.9, 1],
-        }}
-        transition={{ duration: 60, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-[45%] -left-[25%] w-[1300px] h-[1300px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 40% 40%, rgba(197,162,111,0.11) 0%, transparent 65%)' }}
+        animate={{ x: [0, 180, -90, 0], y: [0, 110, -70, 0], scale: [1, 1.15, 0.92, 1] }}
+        transition={{ duration: 48, repeat: Infinity, ease: "easeInOut" }}
       />
 
       <motion.div
-        className="absolute -bottom-[50%] -right-[22%] w-[1300px] h-[1300px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle at 65% 60%, rgba(120,90,160,0.06) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, -180, 90, 0],
-          y: [0, -110, 70, 0],
-          scale: [1, 1.15, 0.92, 1],
-        }}
-        transition={{ duration: 68, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -bottom-[40%] -right-[18%] w-[1150px] h-[1150px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 60% 60%, rgba(170,130,85,0.09) 0%, transparent 65%)' }}
+        animate={{ x: [0, -150, 80, 0], y: [0, -95, 60, 0], scale: [1, 1.12, 0.94, 1] }}
+        transition={{ duration: 52, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Elegant moving light lines */}
-      {Array.from({ length: 7 }).map((_, i) => (
+      {Array.from({ length: 6 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent"
-          style={{
-            left: `${5 + i * 14}%`,
-            top: `${12 + i * 11}%`,
-            width: `${380 + i * 35}px`,
-            opacity: 0.15 + (i % 3) * 0.06,
-          }}
-          animate={{
-            x: [0, 260, -130, 0],
-            opacity: [0.08, 0.32, 0.08],
-          }}
-          transition={{
-            duration: 24 + i * 2.5,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${8 + i * 16}%`, top: `${15 + i * 13}%`, width: `${320 + i * 45}px`, opacity: 0.18 + (i % 3) * 0.05 }}
+          animate={{ x: [0, 220, -110, 0], opacity: [0.1, 0.35, 0.1] }}
+          transition={{ duration: 26 + i * 3, repeat: Infinity, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Floating particles */}
-      {Array.from({ length: 32 }).map((_, i) => (
+      {Array.from({ length: 28 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full bg-[#C5A26F]"
-          style={{
-            left: `${(i * 5 + 2) % 100}%`,
-            top: `${(i * 8 + 5) % 100}%`,
-            width: i % 3 === 0 ? '3.5px' : '1.8px',
-            height: i % 3 === 0 ? '3.5px' : '1.8px',
-          }}
-          animate={{
-            y: [0, -280, 0],
-            x: [0, (i % 4 === 0 ? 60 : -48), 0],
-            opacity: [0, 0.7, 0],
-            scale: [0.4, 2, 0.4],
-          }}
-          transition={{
-            duration: 15 + (i % 9),
-            repeat: Infinity,
-            delay: i * 0.22,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${(i * 6 + 3) % 100}%`, top: `${(i * 9 + 7) % 100}%`, width: i % 4 === 0 ? '4px' : '2px', height: i % 4 === 0 ? '4px' : '2px' }}
+          animate={{ y: [0, -260, 0], x: [0, (i % 5 === 0 ? 55 : -42), 0], opacity: [0, 0.65, 0], scale: [0.5, 1.8, 0.5] }}
+          transition={{ duration: 16 + (i % 8) * 1.5, repeat: Infinity, delay: i * 0.28, ease: "easeInOut" }}
         />
       ))}
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:200px_200px] opacity-40" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:200px_200px] opacity-40" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-35" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-35" />
     </div>
   );
 };
@@ -142,7 +99,8 @@ export default function RitualAgentArena() {
   const [mintX, setMintX] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const ADMIN_ADDRESS = "0x3883f0ddccc55ac112173bc67584952bf13b1a7d";
+  const ADMIN_X_HANDLES = ["ohmythalassa"];
+  const ADMIN_ADDRESSES = ["0x3883f0ddccc55ac112173bc67584952bf13b1a7d"];
 
   const connectWallet = async () => {
     if (!window.ethereum) return alert("Install MetaMask");
@@ -184,9 +142,12 @@ export default function RitualAgentArena() {
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
 
-    const isAdmin = account.toLowerCase() === ADMIN_ADDRESS;
+    const isAdminByAddress = ADMIN_ADDRESSES.includes(account.toLowerCase());
+    const isAdminByX = mintedAgents.some(a => 
+      ADMIN_X_HANDLES.includes(a.xHandle.toLowerCase()) && a.wallet.toLowerCase() === account.toLowerCase()
+    );
 
-    if (!isAdmin) {
+    if (!isAdminByAddress && !isAdminByX) {
       const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
       if (alreadyMinted) {
         alert("This wallet has already minted an agent. 1 wallet = 1 agent.");
@@ -316,7 +277,6 @@ export default function RitualAgentArena() {
     <div className="min-h-screen text-white relative">
       <AnimatedBackground />
 
-      {/* Header */}
       <div className="border-b border-white/10 bg-black/50 backdrop-blur-2xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-7 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -349,7 +309,6 @@ export default function RitualAgentArena() {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 pt-20 pb-24">
-        {/* Hero */}
         <div className="text-center mb-24">
           <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs tracking-[4px] mb-8">
             RITUAL TESTNET • CHAIN 1979
@@ -362,7 +321,6 @@ export default function RitualAgentArena() {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-20">
           {[
             { icon: Users, label: "Active Agents", value: totalAgents },
@@ -377,7 +335,6 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
-        {/* Leaderboard */}
         {leaderboard.length > 0 && (
           <div className="mb-20">
             <div className="flex items-center gap-4 mb-8 px-2">
@@ -400,7 +357,6 @@ export default function RitualAgentArena() {
           </div>
         )}
 
-        {/* Minted Agents Table */}
         {mintedAgents.length > 0 && (
           <div className="mb-20">
             <div className="flex items-center justify-between mb-8 px-2">
@@ -433,7 +389,6 @@ export default function RitualAgentArena() {
           </div>
         )}
 
-        {/* Agent Roster Header */}
         <div className="flex items-center justify-between mb-8 px-2">
           <div>
             <div className="text-4xl font-semibold tracking-[-2px]">Agent Roster</div>
@@ -444,7 +399,6 @@ export default function RitualAgentArena() {
           </button>
         </div>
 
-        {/* Empty State */}
         {agents.length === 0 && (
           <div className="border border-white/10 rounded-3xl p-20 text-center bg-white/[0.015]">
             <div className="mx-auto w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-8">
@@ -459,7 +413,6 @@ export default function RitualAgentArena() {
         )}
       </div>
 
-      {/* Battle Modal */}
       <AnimatePresence>
         {selectedAgent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
@@ -500,7 +453,6 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
