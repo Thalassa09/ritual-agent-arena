@@ -1,8 +1,8 @@
 # Daily Note - Ritual Agent Arena
 
 **Tanggal:** 2026-06-12
-**Action:** Contract deployed + frontend updated
+**Action:** Fixed Vercel deployment
 **Detail:** 
-- RitualAgentArena deployed at 0x411fA6BEBfECE74293AC1B74d1f906688A13763D (Chain 1979)
-- Updated frontend with real contract address
-- Mint & Battle now fully connected to on-chain contract
+- Added webpack fallback in next.config.ts (fs, net, tls)
+- Ensured all browser-only code is inside 'use client'
+- Contract integration already correct (ethers + window.ethereum)
