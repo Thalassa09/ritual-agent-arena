@@ -87,7 +87,15 @@ const generateRandomAgentName = () => {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([]);
+  
+  // Starter agents (5 agents biar langsung bisa battle)
+  const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
+    { id: 1, name: "Shadow Oracle", xHandle: "shadoworacle", wallet: "0x000", power: 91, wins: 12 },
+    { id: 2, name: "Void Weaver", xHandle: "voidweaver", wallet: "0x000", power: 87, wins: 9 },
+    { id: 3, name: "Nexus Striker", xHandle: "nexusstriker", wallet: "0x000", power: 94, wins: 15 },
+    { id: 4, name: "Aether Knight", xHandle: "aetherknight", wallet: "0x000", power: 83, wins: 8 },
+    { id: 5, name: "Eclipse Reaper", xHandle: "eclipsereaper", wallet: "0x000", power: 89, wins: 11 },
+  ]);
   
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [isBattling, setIsBattling] = useState(false);
