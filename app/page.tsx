@@ -27,43 +27,78 @@ interface MintedAgent {
   wallet: string;
 }
 
-// Beautiful & Elegant Animated Background
+// More Dynamic & Beautiful Animated Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
       <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-50" />
       
+      {/* Large moving glowing orbs - more visible movement */}
       <motion.div
-        className="absolute -top-[35%] -left-[20%] w-[800px] h-[800px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 30% 30%, rgba(197,162,111,0.07) 0%, transparent 60%)' }}
-        animate={{ x: [0, 70, -40, 0], y: [0, 50, -25, 0], scale: [1, 1.08, 0.96, 1] }}
-        transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-[30%] -left-[15%] w-[900px] h-[900px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 40% 40%, rgba(197,162,111,0.09) 0%, transparent 60%)' }}
+        animate={{ 
+          x: [0, 120, -60, 0], 
+          y: [0, 70, -35, 0],
+          scale: [1, 1.12, 0.94, 1]
+        }}
+        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
       />
       
       <motion.div
-        className="absolute -bottom-[30%] -right-[15%] w-[750px] h-[750px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 70% 70%, rgba(139,115,85,0.06) 0%, transparent 60%)' }}
-        animate={{ x: [0, -60, 30, 0], y: [0, -40, 20, 0], scale: [1, 1.06, 0.97, 1] }}
-        transition={{ duration: 38, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -bottom-[25%] -right-[12%] w-[820px] h-[820px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 60% 60%, rgba(139,115,85,0.08) 0%, transparent 60%)' }}
+        animate={{ 
+          x: [0, -90, 45, 0], 
+          y: [0, -55, 30, 0],
+          scale: [1, 1.1, 0.95, 1]
+        }}
+        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {Array.from({ length: 5 }).map((_, i) => (
+      {/* Moving horizontal lines - more visible */}
+      {Array.from({ length: 4 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute h-[1px] bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-20"
-          style={{ left: `${10 + i * 18}%`, top: `${25 + i * 12}%`, width: `${120 + i * 30}px` }}
-          animate={{ x: [0, 80, -40, 0], opacity: [0.1, 0.3, 0.1] }}
-          transition={{ duration: 20 + i * 3, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-25"
+          style={{
+            left: `${8 + i * 22}%`,
+            top: `${22 + i * 15}%`,
+            width: `${180 + i * 40}px`,
+          }}
+          animate={{
+            x: [0, 140, -70, 0],
+            opacity: [0.1, 0.4, 0.1],
+          }}
+          transition={{
+            duration: 18 + i * 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
-      {Array.from({ length: 14 }).map((_, i) => (
+      {/* Floating particles with more movement */}
+      {Array.from({ length: 16 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-px h-px bg-[#C5A26F] rounded-full"
-          style={{ left: `${(i * 11) % 100}%`, top: `${(i * 17) % 100}%` }}
-          animate={{ y: [0, -160, 0], opacity: [0, 0.4, 0], scale: [0.5, 1.5, 0.5] }}
-          transition={{ duration: 16 + (i % 5), repeat: Infinity, delay: i * 0.7, ease: "easeInOut" }}
+          className="absolute w-[2px] h-[2px] bg-[#C5A26F] rounded-full"
+          style={{
+            left: `${(i * 9 + 5) % 100}%`,
+            top: `${(i * 14) % 100}%`,
+          }}
+          animate={{
+            y: [0, -200, 0],
+            x: [0, (i % 3 === 0 ? 30 : -25), 0],
+            opacity: [0, 0.5, 0],
+            scale: [0.6, 1.8, 0.6],
+          }}
+          transition={{
+            duration: 14 + (i % 6),
+            repeat: Infinity,
+            delay: i * 0.5,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
@@ -81,11 +116,10 @@ const randomNames = [
 
 const randomSuffixes = ["Oracle", "Weaver", "Striker", "Knight", "Reaper", "Warden", "Sage", "Hunter", "Lord", "Walker"];
 
-const generateRandomAgent = () => {
+const generateRandomAgentName = () => {
   const name = randomNames[Math.floor(Math.random() * randomNames.length)];
   const suffix = randomSuffixes[Math.floor(Math.random() * randomSuffixes.length)];
-  const xHandle = (name + suffix).toLowerCase().slice(0, 12);
-  return { name: `${name} ${suffix}`, xHandle };
+  return `${name} ${suffix}`;
 };
 
 export default function RitualAgentArena() {
@@ -143,7 +177,6 @@ export default function RitualAgentArena() {
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
 
-    // Check if wallet already minted
     const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
     if (alreadyMinted) {
       alert("This wallet has already minted an agent. 1 wallet = 1 agent.");
@@ -161,10 +194,10 @@ export default function RitualAgentArena() {
     setErrorMsg('');
   };
 
+  // Random hanya untuk nama agent, X handle tidak random
   const generateRandomName = () => {
-    const random = generateRandomAgent();
-    setMintName(random.name);
-    setMintX(random.xHandle);
+    const randomName = generateRandomAgentName();
+    setMintName(randomName);
     setErrorMsg('');
   };
 
@@ -174,14 +207,12 @@ export default function RitualAgentArena() {
     const nameLower = mintName.trim().toLowerCase();
     const xLower = mintX.trim().toLowerCase();
 
-    // Check duplicate name
     const nameExists = mintedAgents.find(a => a.name.toLowerCase() === nameLower);
     if (nameExists) {
       setErrorMsg("Agent name already taken");
       return;
     }
 
-    // Check duplicate X handle
     const xExists = mintedAgents.find(a => a.xHandle.toLowerCase() === xLower);
     if (xExists) {
       setErrorMsg("X handle already taken");
@@ -311,7 +342,6 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
-        {/* Minted Agents List */}
         {mintedAgents.length > 0 && (
           <div className="mb-16">
             <div className="flex items-center justify-between mb-6 px-1">
@@ -368,7 +398,6 @@ export default function RitualAgentArena() {
         )}
       </div>
 
-      {/* Battle Modal */}
       <AnimatePresence>
         {selectedAgent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
@@ -408,7 +437,6 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
