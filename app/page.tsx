@@ -24,91 +24,55 @@ interface MintedAgent {
   id: number;
   name: string;
   xHandle: string;
+  wallet: string;
 }
 
 // Beautiful & Elegant Animated Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      {/* Subtle noise texture */}
       <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-50" />
       
-      {/* Large elegant glowing orbs */}
       <motion.div
         className="absolute -top-[35%] -left-[20%] w-[800px] h-[800px] rounded-full"
         style={{ background: 'radial-gradient(circle at 30% 30%, rgba(197,162,111,0.07) 0%, transparent 60%)' }}
-        animate={{ 
-          x: [0, 70, -40, 0], 
-          y: [0, 50, -25, 0],
-          scale: [1, 1.08, 0.96, 1]
-        }}
+        animate={{ x: [0, 70, -40, 0], y: [0, 50, -25, 0], scale: [1, 1.08, 0.96, 1] }}
         transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
       />
       
       <motion.div
         className="absolute -bottom-[30%] -right-[15%] w-[750px] h-[750px] rounded-full"
         style={{ background: 'radial-gradient(circle at 70% 70%, rgba(139,115,85,0.06) 0%, transparent 60%)' }}
-        animate={{ 
-          x: [0, -60, 30, 0], 
-          y: [0, -40, 20, 0],
-          scale: [1, 1.06, 0.97, 1]
-        }}
+        animate={{ x: [0, -60, 30, 0], y: [0, -40, 20, 0], scale: [1, 1.06, 0.97, 1] }}
         transition={{ duration: 38, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Floating elegant lines */}
       {Array.from({ length: 5 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute h-[1px] bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-20"
-          style={{
-            left: `${10 + i * 18}%`,
-            top: `${25 + i * 12}%`,
-            width: `${120 + i * 30}px`,
-          }}
-          animate={{
-            x: [0, 80, -40, 0],
-            opacity: [0.1, 0.3, 0.1],
-          }}
-          transition={{
-            duration: 20 + i * 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${10 + i * 18}%`, top: `${25 + i * 12}%`, width: `${120 + i * 30}px` }}
+          animate={{ x: [0, 80, -40, 0], opacity: [0.1, 0.3, 0.1] }}
+          transition={{ duration: 20 + i * 3, repeat: Infinity, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Soft floating particles */}
       {Array.from({ length: 14 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-px h-px bg-[#C5A26F] rounded-full"
-          style={{
-            left: `${(i * 11) % 100}%`,
-            top: `${(i * 17) % 100}%`,
-          }}
-          animate={{
-            y: [0, -160, 0],
-            opacity: [0, 0.4, 0],
-            scale: [0.5, 1.5, 0.5],
-          }}
-          transition={{
-            duration: 16 + (i % 5),
-            repeat: Infinity,
-            delay: i * 0.7,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${(i * 11) % 100}%`, top: `${(i * 17) % 100}%` }}
+          animate={{ y: [0, -160, 0], opacity: [0, 0.4, 0], scale: [0.5, 1.5, 0.5] }}
+          transition={{ duration: 16 + (i % 5), repeat: Infinity, delay: i * 0.7, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Very subtle grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:140px_140px] opacity-30" />
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:140px_140px] opacity-30" />
     </div>
   );
 };
 
-// Random name generator
 const randomNames = [
   "Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift",
   "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium",
@@ -128,7 +92,6 @@ export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
   const [agents, setAgents] = useState<any[]>([]);
-  
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([]);
   
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
@@ -138,6 +101,7 @@ export default function RitualAgentArena() {
   const [showMintModal, setShowMintModal] = useState(false);
   const [mintName, setMintName] = useState('');
   const [mintX, setMintX] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const connectWallet = async () => {
     if (!window.ethereum) return alert("Install MetaMask");
@@ -178,23 +142,51 @@ export default function RitualAgentArena() {
 
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
+
+    // Check if wallet already minted
+    const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
+    if (alreadyMinted) {
+      alert("This wallet has already minted an agent. 1 wallet = 1 agent.");
+      return;
+    }
+
     setShowMintModal(true);
     setMintName('');
     setMintX('');
+    setErrorMsg('');
   };
 
   const closeMintModal = () => {
     setShowMintModal(false);
+    setErrorMsg('');
   };
 
   const generateRandomName = () => {
     const random = generateRandomAgent();
     setMintName(random.name);
     setMintX(random.xHandle);
+    setErrorMsg('');
   };
 
   const mintNewAgent = async () => {
     if (!contract || !mintName.trim() || !mintX.trim()) return;
+
+    const nameLower = mintName.trim().toLowerCase();
+    const xLower = mintX.trim().toLowerCase();
+
+    // Check duplicate name
+    const nameExists = mintedAgents.find(a => a.name.toLowerCase() === nameLower);
+    if (nameExists) {
+      setErrorMsg("Agent name already taken");
+      return;
+    }
+
+    // Check duplicate X handle
+    const xExists = mintedAgents.find(a => a.xHandle.toLowerCase() === xLower);
+    if (xExists) {
+      setErrorMsg("X handle already taken");
+      return;
+    }
 
     try {
       const displayName = `${mintName.trim()} (@${mintX.trim()})`;
@@ -205,6 +197,7 @@ export default function RitualAgentArena() {
         id: mintedAgents.length + 1,
         name: mintName.trim(),
         xHandle: mintX.trim(),
+        wallet: account,
       };
       setMintedAgents([...mintedAgents, newAgent]);
 
@@ -415,7 +408,7 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal with Random Button */}
+      {/* Mint Modal */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
@@ -466,6 +459,10 @@ export default function RitualAgentArena() {
                   </div>
                 </div>
               </div>
+
+              {errorMsg && (
+                <div className="mt-4 text-center text-sm text-red-400">{errorMsg}</div>
+              )}
 
               <button
                 onClick={mintNewAgent}
