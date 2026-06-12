@@ -48,17 +48,19 @@ export default function RitualAgentArena() {
 
     const provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await provider.send("eth_requestAccounts", []);
-    const network = await provider.getNetwork();
-
-    if (Number(network.chainId) !== RITUAL_CHAIN_ID) {
-      await switchToRitual();
-    }
+    
+    await switchToRitual();
 
     const signer = await provider.getSigner();
     const ritualContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
     setAccount(accounts[0]);
     setContract(ritualContract);
+  };
+
+  const disconnectWallet = () => {
+    setAccount('');
+    setContract(null);
   };
 
   const switchToRitual = async () => {
@@ -138,12 +140,20 @@ export default function RitualAgentArena() {
           
           <div className="flex gap-3">
             {account && (
-              <button 
-                onClick={mintNewAgent}
-                className="px-5 py-2.5 rounded-full border border-[#8B5E3C] text-sm hover:bg-[#8B5E3C] hover:text-white transition-colors"
-              >
-                Mint Agent
-              </button>
+              <>
+                <button 
+                  onClick={mintNewAgent}
+                  className="px-5 py-2.5 rounded-full border border-[#8B5E3C] text-sm hover:bg-[#8B5E3C] hover:text-white transition-colors"
+                >
+                  Mint Agent
+                </button>
+                <button 
+                  onClick={disconnectWallet}
+                  className="px-5 py-2.5 rounded-full border border-[#8B5E3C] text-sm hover:bg-red-600 hover:text-white transition-colors"
+                >
+                  Disconnect
+                </button>
+              </>
             )}
             <button 
               onClick={connectWallet}

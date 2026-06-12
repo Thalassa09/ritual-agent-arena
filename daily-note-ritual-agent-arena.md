@@ -1,8 +1,8 @@
 # Daily Note - Ritual Agent Arena
 
 **Tanggal:** 2026-06-12
-**Action:** Fixed Vercel deployment
+**Action:** Added disconnect wallet feature
 **Detail:** 
-- Added webpack fallback in next.config.ts (fs, net, tls)
-- Ensured all browser-only code is inside 'use client'
-- Contract integration already correct (ethers + window.ethereum)
+- Added Disconnect button when wallet is connected
+- Improved force network switching on connect
+- RPC already using correct Ritual endpoint (https://rpc.ritualfoundation.org)
