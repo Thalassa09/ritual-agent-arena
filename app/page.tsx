@@ -91,6 +91,7 @@ export default function RitualAgentArena() {
   
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [isBattling, setIsBattling] = useState(false);
+  const [isBattleAnimating, setIsBattleAnimating] = useState(false);
   const [battleResult, setBattleResult] = useState<string>('');
 
   const [showMintModal, setShowMintModal] = useState(false);
@@ -191,7 +192,6 @@ export default function RitualAgentArena() {
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
 
-      // Power di bawah 85 (72-84)
       const power = Math.floor(Math.random() * 13) + 72;
 
       const newAgent: MintedAgent = {
@@ -218,17 +218,23 @@ export default function RitualAgentArena() {
     setIsBattling(false);
   };
 
+  // Battle dengan animasi
   const startBattle = async () => {
     if (!selectedAgent || !contract) return;
     
     setIsBattling(true);
+    setIsBattleAnimating(true);
     setBattleResult('');
+
+    // Simulasi animasi battle selama 2.2 detik
+    await new Promise(resolve => setTimeout(resolve, 2200));
 
     try {
       const opponents = mintedAgents.filter(a => a.id !== selectedAgent.id);
       if (opponents.length === 0) {
         setBattleResult("No other agents to battle");
         setIsBattling(false);
+        setIsBattleAnimating(false);
         return;
       }
 
@@ -258,6 +264,8 @@ export default function RitualAgentArena() {
       console.error(err);
       setBattleResult("Battle failed on-chain");
     }
+    
+    setIsBattleAnimating(false);
     setIsBattling(false);
   };
 
@@ -265,6 +273,7 @@ export default function RitualAgentArena() {
     setSelectedAgent(null);
     setBattleResult('');
     setIsBattling(false);
+    setIsBattleAnimating(false);
   };
 
   const totalAgents = mintedAgents.length;
@@ -413,6 +422,7 @@ export default function RitualAgentArena() {
         )}
       </div>
 
+      {/* Battle Modal with Animation */}
       <AnimatePresence>
         {selectedAgent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
@@ -431,14 +441,32 @@ export default function RitualAgentArena() {
                 <div className="text-[#C5A26F] text-xl mb-12">Power {selectedAgent.power}</div>
               </div>
 
-              {!battleResult && (
+              {/* Battle Animation */}
+              {isBattleAnimating && (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="flex items-center gap-8 mb-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-semibold tracking-tight mb-1">{selectedAgent.name}</div>
+                      <div className="text-sm text-white/50">Power {selectedAgent.power}</div>
+                    </div>
+                    <div className="text-4xl text-[#C5A26F]">VS</div>
+                    <div className="text-center">
+                      <div className="text-2xl font-semibold tracking-tight mb-1">Opponent</div>
+                      <div className="text-sm text-white/50">Calculating...</div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-white/60 tracking-widest">BATTLE IN PROGRESS...</div>
+                </div>
+              )}
+
+              {!battleResult && !isBattleAnimating && (
                 <button
                   onClick={startBattle}
                   disabled={isBattling}
                   className="w-full py-5 rounded-2xl bg-white text-black font-medium flex items-center justify-center gap-3 hover:bg-[#C5A26F] disabled:opacity-60 active:scale-[0.985] transition-all text-lg tracking-wider"
                 >
-                  {isBattling ? "BATTLE IN PROGRESS..." : "INITIATE BATTLE"}
-                  {!isBattling && <Sword className="w-5 h-5" />}
+                  INITIATE BATTLE
+                  <Sword className="w-5 h-5" />
                 </button>
               )}
 
