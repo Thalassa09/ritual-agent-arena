@@ -87,7 +87,15 @@ const generateRandomAgentName = () => {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([]);
+  
+  // 5 Starter Agents (Power < 85, tanpa X handle)
+  const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
+    { id: 1, name: "Shadow Oracle", xHandle: "", wallet: "0x000", power: 83, wins: 12 },
+    { id: 2, name: "Void Weaver", xHandle: "", wallet: "0x000", power: 79, wins: 9 },
+    { id: 3, name: "Nexus Striker", xHandle: "", wallet: "0x000", power: 84, wins: 15 },
+    { id: 4, name: "Aether Knight", xHandle: "", wallet: "0x000", power: 76, wins: 8 },
+    { id: 5, name: "Eclipse Reaper", xHandle: "", wallet: "0x000", power: 81, wins: 11 },
+  ]);
   
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [isBattling, setIsBattling] = useState(false);
@@ -218,7 +226,6 @@ export default function RitualAgentArena() {
     setIsBattling(false);
   };
 
-  // Battle dengan animasi
   const startBattle = async () => {
     if (!selectedAgent || !contract) return;
     
@@ -226,7 +233,6 @@ export default function RitualAgentArena() {
     setIsBattleAnimating(true);
     setBattleResult('');
 
-    // Simulasi animasi battle selama 2.2 detik
     await new Promise(resolve => setTimeout(resolve, 2200));
 
     try {
@@ -422,7 +428,6 @@ export default function RitualAgentArena() {
         )}
       </div>
 
-      {/* Battle Modal with Animation */}
       <AnimatePresence>
         {selectedAgent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
@@ -441,7 +446,6 @@ export default function RitualAgentArena() {
                 <div className="text-[#C5A26F] text-xl mb-12">Power {selectedAgent.power}</div>
               </div>
 
-              {/* Battle Animation */}
               {isBattleAnimating && (
                 <div className="flex flex-col items-center justify-center py-8">
                   <div className="flex items-center gap-8 mb-6">
