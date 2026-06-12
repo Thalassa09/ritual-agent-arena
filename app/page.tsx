@@ -27,34 +27,64 @@ interface Agent {
   rating: number;
 }
 
+// Beautiful Animated Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.8px,transparent_1px)] bg-[length:4px_4px]" />
+      {/* Base subtle texture */}
+      <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.6px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
+      
+      {/* Large soft glowing orbs - more elegant */}
+      <motion.div
+        className="absolute -top-[30%] -left-[15%] w-[700px] h-[700px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle, rgba(197,162,111,0.08) 0%, transparent 70%)',
+        }}
+        animate={{
+          x: [0, 60, -30, 0],
+          y: [0, 40, -20, 0],
+        }}
+        transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
+      />
       
       <motion.div
-        className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-[#C5A26F] opacity-[0.06] blur-[120px]"
-        animate={{ x: [0, 80, -40, 0], y: [0, 60, -30, 0], scale: [1, 1.15, 0.95, 1] }}
-        transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -bottom-[25%] -right-[10%] w-[650px] h-[650px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle, rgba(139,115,85,0.07) 0%, transparent 70%)',
+        }}
+        animate={{
+          x: [0, -50, 35, 0],
+          y: [0, -35, 25, 0],
+        }}
+        transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
       />
-      <motion.div
-        className="absolute bottom-[-15%] right-[-5%] w-[500px] h-[500px] rounded-full bg-[#8B7355] opacity-[0.05] blur-[100px]"
-        animate={{ x: [0, -70, 50, 0], y: [0, -50, 40, 0], scale: [1, 1.1, 0.9, 1] }}
-        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
-      />
-      
-      {Array.from({ length: 18 }).map((_, i) => (
+
+      {/* Subtle floating light particles */}
+      {Array.from({ length: 12 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-1 h-1 bg-[#C5A26F] rounded-full opacity-40"
-          style={{ left: `${(i * 7) % 100}%`, top: `${(i * 11) % 100}%` }}
-          animate={{ y: [0, -120, 0], opacity: [0.2, 0.6, 0.2], scale: [0.6, 1.2, 0.6] }}
-          transition={{ duration: 12 + (i % 5), repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
+          className="absolute w-[3px] h-[3px] rounded-full bg-[#C5A26F]"
+          style={{
+            left: `${(i * 9 + 7) % 100}%`,
+            top: `${(i * 13) % 100}%`,
+            opacity: 0.15 + (i % 3) * 0.08,
+          }}
+          animate={{
+            y: [0, -180, 0],
+            opacity: [0.1, 0.35, 0.1],
+          }}
+          transition={{
+            duration: 18 + (i % 7),
+            repeat: Infinity,
+            delay: i * 0.6,
+            ease: "easeInOut",
+          }}
         />
       ))}
-      
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1A1A1E_1px,transparent_1px)] bg-[length:80px_80px] opacity-30" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#1A1A1E_1px,transparent_1px)] bg-[length:80px_80px] opacity-30" />
+
+      {/* Very subtle grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:120px_120px] opacity-40" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:120px_120px] opacity-40" />
     </div>
   );
 };
@@ -172,6 +202,11 @@ export default function RitualAgentArena() {
     setIsBattling(false);
   };
 
+  // Real stats (currently 0 because no agents minted yet)
+  const totalAgents = agents.length;
+  const totalBattles = 0;
+  const avgRating = totalAgents > 0 ? Math.floor(agents.reduce((sum, a) => sum + a.rating, 0) / totalAgents) : 0;
+
   return (
     <div className="min-h-screen text-white relative">
       <AnimatedBackground />
@@ -220,11 +255,12 @@ export default function RitualAgentArena() {
           </p>
         </div>
 
+        {/* Real Stats */}
         <div className="grid grid-cols-3 gap-4 mb-16">
           {[
-            { icon: Users, label: "Active Agents", value: "1,284" },
-            { icon: Trophy, label: "Battles Fought", value: "8,917" },
-            { icon: Zap, label: "Avg Rating", value: "1,712" },
+            { icon: Users, label: "Active Agents", value: totalAgents },
+            { icon: Trophy, label: "Battles Fought", value: totalBattles },
+            { icon: Zap, label: "Avg Rating", value: avgRating || "—" },
           ].map((stat, i) => (
             <div key={i} className="border border-white/10 rounded-3xl p-8 bg-white/[0.015] hover:bg-white/[0.03] transition-all">
               <stat.icon className="w-5 h-5 text-[#C5A26F] mb-6" />
