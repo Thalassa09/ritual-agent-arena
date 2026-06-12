@@ -27,57 +27,32 @@ interface Agent {
   rating: number;
 }
 
-// Animated Background Component
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      {/* Mesh Gradient Base */}
       <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.8px,transparent_1px)] bg-[length:4px_4px]" />
       
-      {/* Animated Gradient Orbs */}
       <motion.div
         className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-[#C5A26F] opacity-[0.06] blur-[120px]"
-        animate={{
-          x: [0, 80, -40, 0],
-          y: [0, 60, -30, 0],
-          scale: [1, 1.15, 0.95, 1],
-        }}
+        animate={{ x: [0, 80, -40, 0], y: [0, 60, -30, 0], scale: [1, 1.15, 0.95, 1] }}
         transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute bottom-[-15%] right-[-5%] w-[500px] h-[500px] rounded-full bg-[#8B7355] opacity-[0.05] blur-[100px]"
-        animate={{
-          x: [0, -70, 50, 0],
-          y: [0, -50, 40, 0],
-          scale: [1, 1.1, 0.9, 1],
-        }}
+        animate={{ x: [0, -70, 50, 0], y: [0, -50, 40, 0], scale: [1, 1.1, 0.9, 1] }}
         transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
       />
       
-      {/* Floating Particles */}
       {Array.from({ length: 18 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-1 h-1 bg-[#C5A26F] rounded-full opacity-40"
-          style={{
-            left: `${(i * 7) % 100}%`,
-            top: `${(i * 11) % 100}%`,
-          }}
-          animate={{
-            y: [0, -120, 0],
-            opacity: [0.2, 0.6, 0.2],
-            scale: [0.6, 1.2, 0.6],
-          }}
-          transition={{
-            duration: 12 + (i % 5),
-            repeat: Infinity,
-            delay: i * 0.4,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${(i * 7) % 100}%`, top: `${(i * 11) % 100}%` }}
+          animate={{ y: [0, -120, 0], opacity: [0.2, 0.6, 0.2], scale: [0.6, 1.2, 0.6] }}
+          transition={{ duration: 12 + (i % 5), repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
         />
       ))}
       
-      {/* Subtle Grid Lines */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1A1A1E_1px,transparent_1px)] bg-[length:80px_80px] opacity-30" />
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#1A1A1E_1px,transparent_1px)] bg-[length:80px_80px] opacity-30" />
     </div>
@@ -97,6 +72,11 @@ export default function RitualAgentArena() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isBattling, setIsBattling] = useState(false);
   const [battleResult, setBattleResult] = useState<string>('');
+
+  // Mint Modal States
+  const [showMintModal, setShowMintModal] = useState(false);
+  const [mintName, setMintName] = useState('');
+  const [mintX, setMintX] = useState('');
 
   const connectWallet = async () => {
     if (!window.ethereum) return alert("Install MetaMask");
@@ -135,16 +115,29 @@ export default function RitualAgentArena() {
     }
   };
 
-  const mintNewAgent = async () => {
+  const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
-    const name = prompt("Agent name:");
-    if (!name) return;
+    setShowMintModal(true);
+    setMintName('');
+    setMintX('');
+  };
+
+  const closeMintModal = () => {
+    setShowMintModal(false);
+  };
+
+  const mintNewAgent = async () => {
+    if (!contract || !mintName.trim()) return;
+
     try {
-      const tx = await contract.mintAgent(name);
+      const displayName = mintX.trim() ? `${mintName.trim()} (@${mintX.trim()})` : mintName.trim();
+      const tx = await contract.mintAgent(displayName);
       await tx.wait();
       alert("Agent minted successfully!");
+      closeMintModal();
     } catch (err) {
       console.error(err);
+      alert("Mint failed");
     }
   };
 
@@ -188,7 +181,6 @@ export default function RitualAgentArena() {
     <div className="min-h-screen text-white relative">
       <AnimatedBackground />
 
-      {/* Header */}
       <div className="border-b border-white/10 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -207,18 +199,12 @@ export default function RitualAgentArena() {
                 <div className="px-4 py-2 rounded-full bg-white/5 text-sm font-mono border border-white/10">
                   {account.slice(0,6)}...{account.slice(-4)}
                 </div>
-                <button 
-                  onClick={disconnectWallet}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 hover:bg-white/5 transition-all active:scale-[0.985]"
-                >
+                <button onClick={disconnectWallet} className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 hover:bg-white/5 transition-all active:scale-[0.985]">
                   <LogOut className="w-4 h-4" /> Disconnect
                 </button>
               </div>
             ) : (
-              <button 
-                onClick={connectWallet}
-                className="flex items-center gap-3 px-8 py-3 rounded-full bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all"
-              >
+              <button onClick={connectWallet} className="flex items-center gap-3 px-8 py-3 rounded-full bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all">
                 Connect Wallet <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -227,7 +213,6 @@ export default function RitualAgentArena() {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 pt-16 pb-24">
-        {/* Hero */}
         <div className="text-center mb-20">
           <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full border border-white/10 bg-white/5 text-xs tracking-[3px] mb-6">
             RITUAL TESTNET • CHAIN ID 1979
@@ -240,7 +225,6 @@ export default function RitualAgentArena() {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-16">
           {[
             { icon: Users, label: "Active Agents", value: "1,284" },
@@ -255,23 +239,18 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
-        {/* Agents Section */}
         <div className="flex items-center justify-between mb-8 px-1">
           <div>
             <div className="text-3xl font-semibold tracking-[-1.5px]">Agent Roster</div>
             <div className="text-white/50">Choose your champion</div>
           </div>
-          <button 
-            onClick={mintNewAgent}
-            className="flex items-center gap-2 px-6 py-3 rounded-full border border-white/20 hover:bg-white/5 active:scale-[0.985] transition-all"
-          >
+          <button onClick={openMintModal} className="flex items-center gap-2 px-6 py-3 rounded-full border border-white/20 hover:bg-white/5 active:scale-[0.985] transition-all">
             <Plus className="w-4 h-4" /> Mint New Agent
           </button>
         </div>
 
-        {/* Agent Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {agents.map((agent, index) => (
+          {agents.map((agent) => (
             <motion.div
               key={agent.id}
               whileHover={{ y: -4, scale: 1.01 }}
@@ -340,6 +319,62 @@ export default function RitualAgentArena() {
                   <button onClick={closeBattle} className="mt-8 text-sm text-white/60 hover:text-white">Close</button>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Mint Modal - Premium Version */}
+      <AnimatePresence>
+        {showMintModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.98 }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              className="w-full max-w-md border border-white/10 rounded-3xl bg-[#0A0A0B] p-10 relative"
+            >
+              <button onClick={closeMintModal} className="absolute top-6 right-6 text-white/40 hover:text-white">✕</button>
+
+              <div className="text-center mb-8">
+                <div className="text-xs tracking-[3px] text-white/40 mb-2">CREATE AGENT</div>
+                <div className="text-4xl font-semibold tracking-[-2px]">Mint New Agent</div>
+              </div>
+
+              <div className="space-y-5">
+                <div>
+                  <div className="text-xs text-white/50 mb-2 ml-1 tracking-wider">AGENT NAME</div>
+                  <input
+                    type="text"
+                    value={mintName}
+                    onChange={(e) => setMintName(e.target.value)}
+                    placeholder="Enter agent name"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-lg focus:outline-none focus:border-[#C5A26F]/60 placeholder:text-white/30 transition-all"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-white/50 mb-2 ml-1 tracking-wider">X HANDLE (OPTIONAL)</div>
+                  <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl focus-within:border-[#C5A26F]/60 transition-all">
+                    <span className="text-white/40 pl-6 pr-2">@</span>
+                    <input
+                      type="text"
+                      value={mintX}
+                      onChange={(e) => setMintX(e.target.value)}
+                      placeholder="username"
+                      className="flex-1 bg-transparent px-4 py-4 text-lg focus:outline-none placeholder:text-white/30"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={mintNewAgent}
+                disabled={!mintName.trim()}
+                className="w-full mt-8 py-4 rounded-2xl bg-white text-black font-medium flex items-center justify-center gap-3 hover:bg-[#C5A26F] disabled:opacity-50 active:scale-[0.985] transition-all text-lg"
+              >
+                MINT AGENT ON RITUAL
+              </button>
             </motion.div>
           </div>
         )}
