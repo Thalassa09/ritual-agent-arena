@@ -122,10 +122,10 @@ export default function RitualAgentArena() {
   };
 
   const mintNewAgent = async () => {
-    if (!contract || !mintName.trim()) return;
+    if (!contract || !mintName.trim() || !mintX.trim()) return;
 
     try {
-      const displayName = mintX.trim() ? `${mintName.trim()} (@${mintX.trim()})` : mintName.trim();
+      const displayName = `${mintName.trim()} (@${mintX.trim()})`;
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
       alert("Agent minted successfully!");
@@ -244,7 +244,7 @@ export default function RitualAgentArena() {
           </button>
         </div>
 
-        {/* Empty State - No hardcoded agents */}
+        {/* Empty State */}
         {agents.length === 0 && (
           <div className="border border-white/10 rounded-3xl p-16 text-center bg-white/[0.015]">
             <div className="mx-auto w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
@@ -261,7 +261,7 @@ export default function RitualAgentArena() {
           </div>
         )}
 
-        {/* Agent Grid (when there are agents) */}
+        {/* Agent Grid */}
         {agents.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {agents.map((agent) => (
@@ -339,7 +339,7 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal */}
+      {/* Mint Modal - X Handle Required */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
@@ -369,7 +369,7 @@ export default function RitualAgentArena() {
                   />
                 </div>
                 <div>
-                  <div className="text-xs text-white/50 mb-2 ml-1 tracking-wider">X HANDLE (OPTIONAL)</div>
+                  <div className="text-xs text-white/50 mb-2 ml-1 tracking-wider">X HANDLE <span className="text-[#C5A26F]">*</span></div>
                   <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl focus-within:border-[#C5A26F]/60 transition-all">
                     <span className="text-white/40 pl-6 pr-2">@</span>
                     <input
@@ -385,7 +385,7 @@ export default function RitualAgentArena() {
 
               <button
                 onClick={mintNewAgent}
-                disabled={!mintName.trim()}
+                disabled={!mintName.trim() || !mintX.trim()}
                 className="w-full mt-8 py-4 rounded-2xl bg-white text-black font-medium flex items-center justify-center gap-3 hover:bg-[#C5A26F] disabled:opacity-50 active:scale-[0.985] transition-all text-lg"
               >
                 MINT AGENT ON RITUAL
