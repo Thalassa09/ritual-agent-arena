@@ -33,76 +33,39 @@ interface MintedAgent {
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      {/* Base soft gradient */}
       <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.6px,transparent_1px)] bg-[length:4px_4px] opacity-40" />
 
-      {/* Large soft aurora / mesh gradient orbs */}
       <motion.div
         className="absolute -top-[40%] left-[10%] w-[1100px] h-[1100px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(197,162,111,0.06) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, 80, -50, 0],
-          y: [0, 60, -40, 0],
-        }}
+        style={{ background: 'radial-gradient(circle, rgba(197,162,111,0.06) 0%, transparent 70%)' }}
+        animate={{ x: [0, 80, -50, 0], y: [0, 60, -40, 0] }}
         transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
       />
 
       <motion.div
         className="absolute -bottom-[35%] right-[5%] w-[950px] h-[950px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(180,140,90,0.05) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, -70, 40, 0],
-          y: [0, -50, 35, 0],
-        }}
+        style={{ background: 'radial-gradient(circle, rgba(180,140,90,0.05) 0%, transparent 70%)' }}
+        animate={{ x: [0, -70, 40, 0], y: [0, -50, 35, 0] }}
         transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Soft floating light dots */}
       {Array.from({ length: 9 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-[3px] h-[3px] rounded-full bg-[#C5A26F]"
-          style={{
-            left: `${15 + ((i * 11) % 70)}%`,
-            top: `${20 + ((i * 17) % 60)}%`,
-            opacity: 0.2,
-          }}
-          animate={{
-            y: [0, -140, 0],
-            opacity: [0.15, 0.45, 0.15],
-          }}
-          transition={{
-            duration: 22 + (i % 4) * 3,
-            repeat: Infinity,
-            delay: i * 1.2,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${15 + ((i * 11) % 70)}%`, top: `${20 + ((i * 17) % 60)}%`, opacity: 0.2 }}
+          animate={{ y: [0, -140, 0], opacity: [0.15, 0.45, 0.15] }}
+          transition={{ duration: 22 + (i % 4) * 3, repeat: Infinity, delay: i * 1.2, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Very subtle moving lines */}
       {Array.from({ length: 3 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-20"
-          style={{
-            left: `${20 + i * 25}%`,
-            top: `${35 + i * 18}%`,
-            width: '220px',
-          }}
-          animate={{
-            x: [0, 90, -50, 0],
-            opacity: [0.08, 0.25, 0.08],
-          }}
-          transition={{
-            duration: 28 + i * 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${20 + i * 25}%`, top: `${35 + i * 18}%`, width: '220px' }}
+          animate={{ x: [0, 90, -50, 0], opacity: [0.08, 0.25, 0.08] }}
+          transition={{ duration: 28 + i * 4, repeat: Infinity, ease: "easeInOut" }}
         />
       ))}
 
@@ -135,6 +98,8 @@ export default function RitualAgentArena() {
   const [mintName, setMintName] = useState('');
   const [mintX, setMintX] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const ADMIN_ADDRESS = "0x3883f0ddccc55ac112173bc67584952bf13b1a7d";
 
   const connectWallet = async () => {
     if (!window.ethereum) return alert("Install MetaMask");
@@ -175,11 +140,17 @@ export default function RitualAgentArena() {
 
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
-    const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
-    if (alreadyMinted) {
-      alert("This wallet has already minted an agent. 1 wallet = 1 agent.");
-      return;
+
+    const isAdmin = account.toLowerCase() === ADMIN_ADDRESS;
+
+    if (!isAdmin) {
+      const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
+      if (alreadyMinted) {
+        alert("This wallet has already minted an agent. 1 wallet = 1 agent.");
+        return;
+      }
     }
+
     setShowMintModal(true);
     setMintName('');
     setMintX('');
