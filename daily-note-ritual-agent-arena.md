@@ -1,8 +1,10 @@
 # Daily Note - Ritual Agent Arena
 
 **Tanggal:** 2026-06-12
-**Action:** Added disconnect wallet feature
+**Action:** Major redesign using new skills
 **Detail:** 
-- Added Disconnect button when wallet is connected
-- Improved force network switching on connect
-- RPC already using correct Ritual endpoint (https://rpc.ritualfoundation.org)
+- Complete visual overhaul with premium dark luxury aesthetic
+- Heavy use of Framer Motion for smooth animations (modal, cards, hover states)
+- Better typography, spacing, and visual hierarchy
+- Glassmorphism + subtle gradients + premium feel
+- Disconnect wallet already included

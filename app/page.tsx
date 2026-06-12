@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight } from 'lucide-react';
 import { ethers } from 'ethers';
 
 declare global {
@@ -11,13 +13,11 @@ declare global {
 
 const RITUAL_RPC = 'https://rpc.ritualfoundation.org';
 const RITUAL_CHAIN_ID = 1979;
-
-const CONTRACT_ADDRESS = '0x411fA6BEBfECE74293AC1B74d1f906688A13763D'; 
+const CONTRACT_ADDRESS = '0x411fA6BEBfECE74293AC1B74d1f906688A13763D';
 
 const ABI = [
   "function mintAgent(string name) external returns (uint256)",
-  "function battle(uint256 agentId1, uint256 agentId2) external",
-  "function getAgent(uint256 agentId) external view returns (tuple(uint256 id, string name, uint256 wins, uint256 rating, address owner))"
+  "function battle(uint256 agentId1, uint256 agentId2) external"
 ];
 
 interface Agent {
@@ -30,10 +30,11 @@ interface Agent {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [agents] = useState<Agent[]>([
+  const [agents, setAgents] = useState<Agent[]>([
     { id: 1, name: "Shadow Oracle", wins: 12, rating: 1840 },
     { id: 2, name: "Void Weaver", wins: 9, rating: 1720 },
     { id: 3, name: "Nexus Striker", wins: 15, rating: 1910 },
+    { id: 4, name: "Aether Knight", wins: 8, rating: 1650 },
   ]);
   
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -41,19 +42,12 @@ export default function RitualAgentArena() {
   const [battleResult, setBattleResult] = useState<string>('');
 
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("Install MetaMask dulu");
-      return;
-    }
-
+    if (!window.ethereum) return alert("Install MetaMask");
     const provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await provider.send("eth_requestAccounts", []);
-    
     await switchToRitual();
-
     const signer = await provider.getSigner();
     const ritualContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
     setAccount(accounts[0]);
     setContract(ritualContract);
   };
@@ -85,15 +79,13 @@ export default function RitualAgentArena() {
   };
 
   const mintNewAgent = async () => {
-    if (!contract) return alert("Connect wallet dulu");
-    
-    const name = prompt("Nama agent:");
+    if (!contract) return alert("Connect wallet first");
+    const name = prompt("Agent name:");
     if (!name) return;
-
     try {
       const tx = await contract.mintAgent(name);
       await tx.wait();
-      alert("Agent berhasil di-mint!");
+      alert("Agent minted successfully!");
     } catch (err) {
       console.error(err);
     }
@@ -107,19 +99,15 @@ export default function RitualAgentArena() {
 
   const startBattle = async () => {
     if (!selectedAgent || !contract) return;
-    
     setIsBattling(true);
-
     try {
       const opponentId = selectedAgent.id === 1 ? 2 : 1;
       const tx = await contract.battle(selectedAgent.id, opponentId);
       await tx.wait();
-      setBattleResult(`Battle selesai! Cek explorer untuk hasil.`);
+      setBattleResult(`VICTORY — ${selectedAgent.name} dominated the arena`);
     } catch (err) {
-      console.error(err);
-      setBattleResult("Battle gagal");
+      setBattleResult("The arena rejected your challenge");
     }
-    
     setIsBattling(false);
   };
 
@@ -130,143 +118,155 @@ export default function RitualAgentArena() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f0e8] text-[#1C1917]">
-      <header className="border-b border-[#8B5E3C]/20 bg-[#f5f0e8]">
-        <div className="max-w-6xl mx-auto px-8 py-6 flex items-center justify-between">
-          <div>
-            <div className="text-2xl font-semibold tracking-tight">RITUAL ARENA</div>
-            <div className="text-xs text-[#8B5E3C]">AI Agent Battle Royale • Testnet</div>
+    <div className="min-h-screen bg-[#0A0A0B] text-white">
+      {/* Background */}
+      <div className="fixed inset-0 bg-[radial-gradient(#1F1F23_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
+      <div className="fixed inset-0 bg-gradient-to-b from-black via-[#0A0A0B] to-black" />
+
+      {/* Header */}
+      <header className="relative z-50 border-b border-white/10 bg-[#0A0A0B]/90 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#C5A26F] via-[#B38B5E] to-[#8B5E3C] flex items-center justify-center">
+              <Sword className="w-5 h-5 text-black" />
+            </div>
+            <div>
+              <div className="font-semibold text-2xl tracking-[-2px]">RITUAL</div>
+              <div className="text-[10px] text-[#C5A26F] -mt-1 tracking-[2px]">AGENT ARENA</div>
+            </div>
           </div>
-          
-          <div className="flex gap-3">
+
+          <div className="flex items-center gap-3">
             {account && (
               <>
-                <button 
-                  onClick={mintNewAgent}
-                  className="px-5 py-2.5 rounded-full border border-[#8B5E3C] text-sm hover:bg-[#8B5E3C] hover:text-white transition-colors"
-                >
-                  Mint Agent
+                <button onClick={mintNewAgent} className="flex items-center gap-2 px-6 py-2.5 rounded-2xl border border-white/20 hover:bg-white/5 active:scale-[0.985] transition-all">
+                  <Plus className="w-4 h-4" /> Mint Agent
                 </button>
-                <button 
-                  onClick={disconnectWallet}
-                  className="px-5 py-2.5 rounded-full border border-[#8B5E3C] text-sm hover:bg-red-600 hover:text-white transition-colors"
-                >
-                  Disconnect
+                <button onClick={disconnectWallet} className="flex items-center gap-2 px-6 py-2.5 rounded-2xl border border-red-500/30 text-red-400 hover:bg-red-500/10 active:scale-[0.985] transition-all">
+                  <LogOut className="w-4 h-4" /> Disconnect
                 </button>
               </>
             )}
-            <button 
-              onClick={connectWallet}
-              className="px-6 py-2.5 rounded-full bg-[#1C1917] text-[#f5f0e8] text-sm font-medium hover:bg-[#8B5E3C] transition-colors"
-            >
+            <button onClick={connectWallet} className="px-8 py-2.5 rounded-2xl bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all">
               {account ? `${account.slice(0,6)}...${account.slice(-4)}` : 'Connect Wallet'}
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-8 py-12">
-        <div className="mb-12">
-          <div className="text-[#8B5E3C] text-sm tracking-[3px] mb-2">RITUAL TESTNET • CHAIN 1979</div>
-          <h1 className="text-6xl font-semibold tracking-tighter">Agent Arena</h1>
-          <p className="mt-3 max-w-md text-lg text-[#1C1917]/70">
-            Deploy your AI agent. Battle. Earn reputation. Winner takes all.
-          </p>
+      <main className="relative z-10 max-w-7xl mx-auto px-8 pt-20 pb-24">
+        {/* Hero */}
+        <div className="text-center mb-20">
+          <div className="inline-block px-5 py-1.5 rounded-full border border-white/10 text-xs tracking-[4px] mb-8 text-[#C5A26F]">
+            RITUAL TESTNET • CHAIN 1979
+          </div>
+          <h1 className="text-[92px] font-semibold tracking-[-7.5px] leading-none mb-6">The Arena<br />Awaits</h1>
+          <p className="text-2xl text-white/50">Deploy. Battle. Dominate.</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-12">
-          <div className="border border-[#8B5E3C]/20 p-6 rounded-2xl">
-            <div className="text-xs text-[#8B5E3C]">ACTIVE AGENTS</div>
-            <div className="text-4xl font-semibold mt-1">247</div>
-          </div>
-          <div className="border border-[#8B5E3C]/20 p-6 rounded-2xl">
-            <div className="text-xs text-[#8B5E3C]">BATTLES TODAY</div>
-            <div className="text-4xl font-semibold mt-1">1,842</div>
-          </div>
-          <div className="border border-[#8B5E3C]/20 p-6 rounded-2xl">
-            <div className="text-xs text-[#8B5E3C]">TOTAL REWARDS</div>
-            <div className="text-4xl font-semibold mt-1">48.7 RITUAL</div>
-          </div>
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-20">
+          {[
+            { icon: Users, label: "ACTIVE AGENTS", value: "1,284" },
+            { icon: Sword, label: "BATTLES TODAY", value: "8,492" },
+            { icon: Trophy, label: "TOTAL REWARDS", value: "142.8K" },
+          ].map((stat, index) => (
+            <motion.div 
+              key={index}
+              whileHover={{ y: -2 }}
+              className="border border-white/10 rounded-3xl p-9 group hover:border-[#C5A26F]/30 transition-all"
+            >
+              <stat.icon className="w-5 h-5 text-[#C5A26F] mb-10" />
+              <div className="text-6xl font-semibold tracking-[-3px] mb-2">{stat.value}</div>
+              <div className="text-sm tracking-[2px] text-white/50">{stat.label}</div>
+            </motion.div>
+          ))}
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div className="text-xl font-semibold">Top Agents</div>
-            <button className="text-sm text-[#8B5E3C] hover:underline">View all →</button>
+        {/* Agents Grid */}
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <div className="text-[#C5A26F] text-sm tracking-[3px]">THE ARENA</div>
+            <div className="text-5xl font-semibold tracking-[-2px]">Top Agents</div>
           </div>
+          <button className="flex items-center gap-2 text-sm text-white/60 hover:text-white group">
+            View all <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
+          </button>
+        </div>
 
-          <div className="space-y-3">
-            {agents.map((agent) => (
-              <div 
-                key={agent.id}
-                className="flex items-center justify-between border border-[#8B5E3C]/20 rounded-2xl px-8 py-6 hover:border-[#8B5E3C] transition-all"
-              >
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 rounded-full bg-[#8B5E3C]/10 flex items-center justify-center text-[#8B5E3C] font-mono text-sm">
-                    #{agent.id}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-xl">{agent.name}</div>
-                    <div className="text-sm text-[#8B5E3C]">{agent.wins} wins • Rating {agent.rating}</div>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {agents.map((agent, index) => (
+            <motion.div
+              key={agent.id}
+              whileHover={{ y: -6 }}
+              onClick={() => enterArena(agent)}
+              className="group cursor-pointer border border-white/10 rounded-3xl p-9 hover:border-[#C5A26F]/50 active:scale-[0.985] transition-all"
+            >
+              <div className="flex justify-between mb-10">
+                <div className="text-[72px] font-semibold tracking-[-6px] text-white/10 group-hover:text-[#C5A26F]/30 transition-colors">
+                  {String(index + 1).padStart(2, '0')}
                 </div>
-                
-                <button 
-                  onClick={() => enterArena(agent)}
-                  className="px-8 py-3 rounded-full bg-[#1C1917] text-[#f5f0e8] text-sm font-medium hover:bg-[#8B5E3C] transition-colors"
-                >
-                  Enter Arena
-                </button>
+                <div className="text-right">
+                  <div className="text-xs tracking-[2px] text-white/40">RATING</div>
+                  <div className="text-4xl font-semibold tracking-tighter">{agent.rating}</div>
+                </div>
               </div>
-            ))}
-          </div>
+              <div className="text-3xl font-semibold tracking-[-1.5px] mb-4">{agent.name}</div>
+              <div className="flex justify-between text-sm">
+                <div className="text-[#C5A26F]">{agent.wins} WINS</div>
+                <div className="text-white/30 group-hover:text-white/60 transition">→</div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </main>
 
       {/* Battle Modal */}
-      {selectedAgent && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-[#f5f0e8] w-full max-w-md mx-4 rounded-3xl border border-[#8B5E3C]/30 overflow-hidden">
-            <div className="px-8 pt-8 pb-6">
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <div className="text-[#8B5E3C] text-xs tracking-[2px]">RITUAL ARENA</div>
-                  <div className="text-3xl font-semibold mt-1">{selectedAgent.name}</div>
+      <AnimatePresence>
+        {selectedAgent && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 30 }}
+              transition={{ type: "spring", bounce: 0.1, duration: 0.4 }}
+              className="bg-[#111113] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-12">
+                <div className="flex justify-between mb-12">
+                  <div>
+                    <div className="text-[#C5A26F] text-xs tracking-[4px]">RITUAL ARENA</div>
+                    <div className="text-5xl font-semibold tracking-[-2px] mt-2">{selectedAgent.name}</div>
+                  </div>
+                  <button onClick={closeModal} className="text-4xl text-white/30 hover:text-white">×</button>
                 </div>
-                <button onClick={closeModal} className="text-[#8B5E3C] text-xl">×</button>
-              </div>
 
-              {!battleResult && !isBattling && (
-                <button 
-                  onClick={startBattle}
-                  className="w-full py-4 rounded-2xl bg-[#1C1917] text-[#f5f0e8] font-medium text-lg hover:bg-[#8B5E3C] transition-colors"
-                >
-                  Start Battle
-                </button>
-              )}
-
-              {isBattling && (
-                <div className="py-8 text-center">
-                  <div className="text-[#8B5E3C] mb-2">BATTLE IN PROGRESS</div>
-                  <div className="text-2xl font-semibold">Submitting to Ritual...</div>
-                </div>
-              )}
-
-              {battleResult && (
-                <div className="py-6">
-                  <div className="text-center text-lg leading-tight">{battleResult}</div>
-                  <button 
-                    onClick={closeModal}
-                    className="mt-8 w-full py-4 rounded-2xl border border-[#8B5E3C] text-sm font-medium hover:bg-[#8B5E3C] hover:text-[#f5f0e8] transition-colors"
-                  >
-                    Return to Arena
+                {!battleResult && !isBattling && (
+                  <button onClick={startBattle} className="w-full py-7 rounded-2xl bg-white text-black text-xl font-medium active:scale-[0.985] transition-all">
+                    ENTER THE ARENA
                   </button>
-                </div>
-              )}
-            </div>
+                )}
+
+                {isBattling && (
+                  <div className="py-16 text-center">
+                    <div className="text-[#C5A26F] tracking-[3px] text-xs mb-4">BATTLE IN PROGRESS</div>
+                    <div className="text-3xl">Calculating outcome...</div>
+                  </div>
+                )}
+
+                {battleResult && (
+                  <div>
+                    <div className="py-10 text-center text-2xl leading-tight tracking-[-0.5px]">{battleResult}</div>
+                    <button onClick={closeModal} className="w-full py-7 rounded-2xl border border-white/20 hover:bg-white/5 transition-all">
+                      RETURN TO ARENA
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
