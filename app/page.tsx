@@ -29,51 +29,48 @@ interface MintedAgent {
   wins: number;
 }
 
-// Ultra Premium Cinematic Background
+// Ultra Beautiful & Visible Premium Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-70" />
-
-      {/* Large elegant moving orbs */}
+      <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
+      
       <motion.div
-        className="absolute -top-[55%] -left-[30%] w-[1500px] h-[1500px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 40% 35%, rgba(180,140,85,0.08) 0%, transparent 70%)' }}
-        animate={{ x: [0, 200, -100, 0], y: [0, 120, -80, 0], scale: [1, 1.18, 0.9, 1] }}
-        transition={{ duration: 60, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-[45%] -left-[25%] w-[1300px] h-[1300px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 40% 40%, rgba(197,162,111,0.11) 0%, transparent 65%)' }}
+        animate={{ x: [0, 180, -90, 0], y: [0, 110, -70, 0], scale: [1, 1.15, 0.92, 1] }}
+        transition={{ duration: 48, repeat: Infinity, ease: "easeInOut" }}
       />
 
       <motion.div
-        className="absolute -bottom-[50%] -right-[22%] w-[1300px] h-[1300px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 65% 60%, rgba(120,90,160,0.06) 0%, transparent 70%)' }}
-        animate={{ x: [0, -180, 90, 0], y: [0, -110, 70, 0], scale: [1, 1.15, 0.92, 1] }}
-        transition={{ duration: 68, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -bottom-[40%] -right-[18%] w-[1150px] h-[1150px] rounded-full"
+        style={{ background: 'radial-gradient(circle at 60% 60%, rgba(170,130,85,0.09) 0%, transparent 65%)' }}
+        animate={{ x: [0, -150, 80, 0], y: [0, -95, 60, 0], scale: [1, 1.12, 0.94, 1] }}
+        transition={{ duration: 52, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Elegant moving light lines */}
-      {Array.from({ length: 7 }).map((_, i) => (
+      {Array.from({ length: 6 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent"
-          style={{ left: `${5 + i * 14}%`, top: `${12 + i * 11}%`, width: `${380 + i * 35}px`, opacity: 0.15 + (i % 3) * 0.06 }}
-          animate={{ x: [0, 260, -130, 0], opacity: [0.08, 0.32, 0.08] }}
-          transition={{ duration: 24 + i * 2.5, repeat: Infinity, ease: "easeInOut" }}
+          style={{ left: `${8 + i * 16}%`, top: `${15 + i * 13}%`, width: `${320 + i * 45}px`, opacity: 0.18 + (i % 3) * 0.05 }}
+          animate={{ x: [0, 220, -110, 0], opacity: [0.1, 0.35, 0.1] }}
+          transition={{ duration: 26 + i * 3, repeat: Infinity, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Floating particles */}
-      {Array.from({ length: 32 }).map((_, i) => (
+      {Array.from({ length: 28 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full bg-[#C5A26F]"
-          style={{ left: `${(i * 5 + 2) % 100}%`, top: `${(i * 8 + 5) % 100}%`, width: i % 3 === 0 ? '3.5px' : '1.8px', height: i % 3 === 0 ? '3.5px' : '1.8px' }}
-          animate={{ y: [0, -280, 0], x: [0, (i % 4 === 0 ? 60 : -48), 0], opacity: [0, 0.7, 0], scale: [0.4, 2, 0.4] }}
-          transition={{ duration: 15 + (i % 9), repeat: Infinity, delay: i * 0.22, ease: "easeInOut" }}
+          style={{ left: `${(i * 6 + 3) % 100}%`, top: `${(i * 9 + 7) % 100}%`, width: i % 4 === 0 ? '4px' : '2px', height: i % 4 === 0 ? '4px' : '2px' }}
+          animate={{ y: [0, -260, 0], x: [0, (i % 5 === 0 ? 55 : -42), 0], opacity: [0, 0.65, 0], scale: [0.5, 1.8, 0.5] }}
+          transition={{ duration: 16 + (i % 8) * 1.5, repeat: Infinity, delay: i * 0.28, ease: "easeInOut" }}
         />
       ))}
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:200px_200px] opacity-40" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:200px_200px] opacity-40" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-35" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-35" />
     </div>
   );
 };
@@ -90,14 +87,7 @@ const generateRandomAgentName = () => {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  
-  const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
-    { id: 1, name: "Shadow Oracle", xHandle: "shadoworacle", wallet: "0x000", power: 91, wins: 12 },
-    { id: 2, name: "Void Weaver", xHandle: "voidweaver", wallet: "0x000", power: 87, wins: 9 },
-    { id: 3, name: "Nexus Striker", xHandle: "nexusstriker", wallet: "0x000", power: 94, wins: 15 },
-    { id: 4, name: "Aether Knight", xHandle: "aetherknight", wallet: "0x000", power: 83, wins: 8 },
-    { id: 5, name: "Eclipse Reaper", xHandle: "eclipsereaper", wallet: "0x000", power: 89, wins: 11 },
-  ]);
+  const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([]);
   
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [isBattling, setIsBattling] = useState(false);
@@ -201,7 +191,8 @@ export default function RitualAgentArena() {
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
 
-      const power = Math.floor(Math.random() * 27) + 72;
+      // Power di bawah 85 (72-84)
+      const power = Math.floor(Math.random() * 13) + 72;
 
       const newAgent: MintedAgent = {
         id: mintedAgents.length + 1,
@@ -286,31 +277,30 @@ export default function RitualAgentArena() {
     <div className="min-h-screen text-white relative">
       <AnimatedBackground />
 
-      {/* Header */}
-      <div className="border-b border-white/10 bg-black/60 backdrop-blur-3xl sticky top-0 z-50">
+      <div className="border-b border-white/10 bg-black/50 backdrop-blur-2xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-7 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#C5A26F] via-[#A67C52] to-[#8B5E3C] flex items-center justify-center shadow-xl">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#C5A26F] via-[#A67C52] to-[#8B5E3C] flex items-center justify-center shadow-lg">
               <Sword className="w-5 h-5 text-black" />
             </div>
             <div>
-              <div className="font-semibold tracking-[-1.2px] text-3xl">Ritual</div>
-              <div className="text-[10px] text-white/40 -mt-1 tracking-[4px]">AGENT ARENA</div>
+              <div className="font-semibold tracking-[-1px] text-2xl">Ritual</div>
+              <div className="text-[10px] text-white/40 -mt-1 tracking-[3px]">AGENT ARENA</div>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             {account ? (
               <div className="flex items-center gap-3">
-                <div className="px-6 py-2.5 rounded-full bg-white/5 text-sm font-mono border border-white/10">
+                <div className="px-5 py-2.5 rounded-full bg-white/5 text-sm font-mono border border-white/10">
                   {account.slice(0,6)}...{account.slice(-4)}
                 </div>
-                <button onClick={disconnectWallet} className="flex items-center gap-2 px-6 py-2.5 rounded-full border border-white/20 hover:bg-white/5 transition-all active:scale-[0.985]">
+                <button onClick={disconnectWallet} className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/20 hover:bg-white/5 transition-all active:scale-[0.985]">
                   <LogOut className="w-4 h-4" /> Disconnect
                 </button>
               </div>
             ) : (
-              <button onClick={connectWallet} className="flex items-center gap-3 px-9 py-3.5 rounded-full bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all text-sm tracking-wider">
+              <button onClick={connectWallet} className="flex items-center gap-3 px-8 py-3 rounded-full bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all text-sm tracking-wide">
                 CONNECT WALLET <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -319,12 +309,11 @@ export default function RitualAgentArena() {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 pt-20 pb-24">
-        {/* Hero */}
         <div className="text-center mb-24">
-          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full border border-white/10 bg-white/5 text-xs tracking-[4.5px] mb-9">
+          <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs tracking-[4px] mb-8">
             RITUAL TESTNET • CHAIN 1979
           </div>
-          <h1 className="text-[96px] leading-[86px] font-semibold tracking-[-7px] mb-7">
+          <h1 className="text-[92px] leading-[82px] font-semibold tracking-[-6.5px] mb-6">
             Where Agents<br />Prove Their Worth
           </h1>
           <p className="text-2xl text-white/60 max-w-lg mx-auto tracking-[-0.5px]">
@@ -332,22 +321,20 @@ export default function RitualAgentArena() {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-20">
           {[
             { icon: Users, label: "Active Agents", value: totalAgents },
             { icon: Trophy, label: "Battles Fought", value: totalBattles },
             { icon: Zap, label: "Avg Rating", value: avgRating || "—" },
           ].map((stat, i) => (
-            <div key={i} className="border border-white/10 rounded-3xl p-10 bg-white/[0.015] hover:bg-white/[0.03] transition-all group">
-              <stat.icon className="w-5 h-5 text-[#C5A26F] mb-9 group-hover:scale-110 transition-transform" />
-              <div className="text-7xl font-semibold tracking-[-3.5px] mb-1">{stat.value}</div>
+            <div key={i} className="border border-white/10 rounded-3xl p-9 bg-white/[0.015] hover:bg-white/[0.025] transition-all group">
+              <stat.icon className="w-5 h-5 text-[#C5A26F] mb-8 group-hover:scale-110 transition-transform" />
+              <div className="text-6xl font-semibold tracking-[-3px] mb-1">{stat.value}</div>
               <div className="text-white/50 text-sm tracking-wider">{stat.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Leaderboard */}
         {leaderboard.length > 0 && (
           <div className="mb-20">
             <div className="flex items-center gap-4 mb-8 px-2">
@@ -370,7 +357,6 @@ export default function RitualAgentArena() {
           </div>
         )}
 
-        {/* Minted Agents Table */}
         {mintedAgents.length > 0 && (
           <div className="mb-20">
             <div className="flex items-center justify-between mb-8 px-2">
@@ -403,7 +389,6 @@ export default function RitualAgentArena() {
           </div>
         )}
 
-        {/* Agent Roster Header */}
         <div className="flex items-center justify-between mb-8 px-2">
           <div>
             <div className="text-4xl font-semibold tracking-[-2px]">Agent Roster</div>
@@ -414,7 +399,6 @@ export default function RitualAgentArena() {
           </button>
         </div>
 
-        {/* Empty State */}
         {mintedAgents.length === 0 && (
           <div className="border border-white/10 rounded-3xl p-20 text-center bg-white/[0.015]">
             <div className="mx-auto w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-8">
@@ -429,7 +413,6 @@ export default function RitualAgentArena() {
         )}
       </div>
 
-      {/* Battle Modal */}
       <AnimatePresence>
         {selectedAgent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
@@ -470,7 +453,6 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
