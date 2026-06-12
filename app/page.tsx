@@ -25,80 +25,47 @@ interface MintedAgent {
   name: string;
   xHandle: string;
   wallet: string;
+  power: number;
+  wins: number;
 }
 
-// More Dynamic & Beautiful Animated Background
+// Dynamic Animated Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
       <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-50" />
       
-      {/* Large moving glowing orbs - more visible movement */}
       <motion.div
         className="absolute -top-[30%] -left-[15%] w-[900px] h-[900px] rounded-full"
         style={{ background: 'radial-gradient(circle at 40% 40%, rgba(197,162,111,0.09) 0%, transparent 60%)' }}
-        animate={{ 
-          x: [0, 120, -60, 0], 
-          y: [0, 70, -35, 0],
-          scale: [1, 1.12, 0.94, 1]
-        }}
+        animate={{ x: [0, 120, -60, 0], y: [0, 70, -35, 0], scale: [1, 1.12, 0.94, 1] }}
         transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
       />
       
       <motion.div
         className="absolute -bottom-[25%] -right-[12%] w-[820px] h-[820px] rounded-full"
         style={{ background: 'radial-gradient(circle at 60% 60%, rgba(139,115,85,0.08) 0%, transparent 60%)' }}
-        animate={{ 
-          x: [0, -90, 45, 0], 
-          y: [0, -55, 30, 0],
-          scale: [1, 1.1, 0.95, 1]
-        }}
+        animate={{ x: [0, -90, 45, 0], y: [0, -55, 30, 0], scale: [1, 1.1, 0.95, 1] }}
         transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Moving horizontal lines - more visible */}
       {Array.from({ length: 4 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-25"
-          style={{
-            left: `${8 + i * 22}%`,
-            top: `${22 + i * 15}%`,
-            width: `${180 + i * 40}px`,
-          }}
-          animate={{
-            x: [0, 140, -70, 0],
-            opacity: [0.1, 0.4, 0.1],
-          }}
-          transition={{
-            duration: 18 + i * 2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${8 + i * 22}%`, top: `${22 + i * 15}%`, width: `${180 + i * 40}px` }}
+          animate={{ x: [0, 140, -70, 0], opacity: [0.1, 0.4, 0.1] }}
+          transition={{ duration: 18 + i * 2, repeat: Infinity, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Floating particles with more movement */}
       {Array.from({ length: 16 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-[2px] h-[2px] bg-[#C5A26F] rounded-full"
-          style={{
-            left: `${(i * 9 + 5) % 100}%`,
-            top: `${(i * 14) % 100}%`,
-          }}
-          animate={{
-            y: [0, -200, 0],
-            x: [0, (i % 3 === 0 ? 30 : -25), 0],
-            opacity: [0, 0.5, 0],
-            scale: [0.6, 1.8, 0.6],
-          }}
-          transition={{
-            duration: 14 + (i % 6),
-            repeat: Infinity,
-            delay: i * 0.5,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${(i * 9 + 5) % 100}%`, top: `${(i * 14) % 100}%` }}
+          animate={{ y: [0, -200, 0], x: [0, (i % 3 === 0 ? 30 : -25), 0], opacity: [0, 0.5, 0], scale: [0.6, 1.8, 0.6] }}
+          transition={{ duration: 14 + (i % 6), repeat: Infinity, delay: i * 0.5, ease: "easeInOut" }}
         />
       ))}
 
@@ -108,12 +75,7 @@ const AnimatedBackground = () => {
   );
 };
 
-const randomNames = [
-  "Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift",
-  "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium",
-  "Obsidian", "Celestia", "Helix", "Orion", "Zenith", "Lunar", "Solstice"
-];
-
+const randomNames = ["Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift", "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium", "Obsidian", "Celestia", "Helix", "Orion", "Zenith", "Lunar", "Solstice"];
 const randomSuffixes = ["Oracle", "Weaver", "Striker", "Knight", "Reaper", "Warden", "Sage", "Hunter", "Lord", "Walker"];
 
 const generateRandomAgentName = () => {
@@ -176,13 +138,11 @@ export default function RitualAgentArena() {
 
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
-
     const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
     if (alreadyMinted) {
       alert("This wallet has already minted an agent. 1 wallet = 1 agent.");
       return;
     }
-
     setShowMintModal(true);
     setMintName('');
     setMintX('');
@@ -194,7 +154,6 @@ export default function RitualAgentArena() {
     setErrorMsg('');
   };
 
-  // Random hanya untuk nama agent, X handle tidak random
   const generateRandomName = () => {
     const randomName = generateRandomAgentName();
     setMintName(randomName);
@@ -207,14 +166,11 @@ export default function RitualAgentArena() {
     const nameLower = mintName.trim().toLowerCase();
     const xLower = mintX.trim().toLowerCase();
 
-    const nameExists = mintedAgents.find(a => a.name.toLowerCase() === nameLower);
-    if (nameExists) {
+    if (mintedAgents.find(a => a.name.toLowerCase() === nameLower)) {
       setErrorMsg("Agent name already taken");
       return;
     }
-
-    const xExists = mintedAgents.find(a => a.xHandle.toLowerCase() === xLower);
-    if (xExists) {
+    if (mintedAgents.find(a => a.xHandle.toLowerCase() === xLower)) {
       setErrorMsg("X handle already taken");
       return;
     }
@@ -224,11 +180,16 @@ export default function RitualAgentArena() {
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
 
+      // Generate random power between 72 - 98
+      const power = Math.floor(Math.random() * 27) + 72;
+
       const newAgent: MintedAgent = {
         id: mintedAgents.length + 1,
         name: mintName.trim(),
         xHandle: mintX.trim(),
         wallet: account,
+        power,
+        wins: 0,
       };
       setMintedAgents([...mintedAgents, newAgent]);
 
@@ -246,6 +207,7 @@ export default function RitualAgentArena() {
     setIsBattling(false);
   };
 
+  // Battle logic berdasarkan power
   const startBattle = async () => {
     if (!selectedAgent || !contract) return;
     
@@ -253,14 +215,37 @@ export default function RitualAgentArena() {
     setBattleResult('');
 
     try {
-      const opponent = agents.find((a: any) => a.id !== selectedAgent.id)!;
-      const tx = await contract.battle(selectedAgent.id, opponent.id);
-      await tx.wait();
+      // Pilih opponent secara random
+      const opponents = mintedAgents.filter(a => a.id !== selectedAgent.id);
+      if (opponents.length === 0) {
+        setBattleResult("No other agents to battle");
+        setIsBattling(false);
+        return;
+      }
 
-      const win = Math.random() > 0.5;
-      const resultText = win 
-        ? `Victory! ${selectedAgent.name} defeated ${opponent.name}` 
-        : `Defeat. ${opponent.name} overpowered ${selectedAgent.name}`;
+      const opponent = opponents[Math.floor(Math.random() * opponents.length)];
+
+      // Battle berdasarkan power
+      const myPower = selectedAgent.power;
+      const oppPower = opponent.power;
+
+      let resultText = "";
+
+      if (myPower > oppPower) {
+        // Menang
+        resultText = `Victory! ${selectedAgent.name} defeated ${opponent.name} (${myPower} vs ${oppPower})`;
+        
+        // Update wins
+        const updated = mintedAgents.map(a => 
+          a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a
+        );
+        setMintedAgents(updated);
+        
+      } else if (myPower < oppPower) {
+        resultText = `Defeat. ${opponent.name} overpowered ${selectedAgent.name} (${oppPower} vs ${myPower})`;
+      } else {
+        resultText = `Draw! Both agents have equal power (${myPower})`;
+      }
 
       setBattleResult(resultText);
     } catch (err) {
@@ -279,6 +264,9 @@ export default function RitualAgentArena() {
   const totalAgents = mintedAgents.length;
   const totalBattles = 0;
   const avgRating = totalAgents > 0 ? 1700 : 0;
+
+  // Leaderboard (sorted by wins)
+  const leaderboard = [...mintedAgents].sort((a, b) => b.wins - a.wins).slice(0, 5);
 
   return (
     <div className="min-h-screen text-white relative">
@@ -342,6 +330,30 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
+        {/* Leaderboard */}
+        {leaderboard.length > 0 && (
+          <div className="mb-16">
+            <div className="flex items-center gap-3 mb-6 px-1">
+              <Trophy className="w-6 h-6 text-[#C5A26F]" />
+              <div className="text-2xl font-semibold tracking-[-1px]">Top Agents</div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {leaderboard.map((agent, index) => (
+                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-white/[0.015]">
+                  <div className="text-xs text-white/40 mb-1">#{index + 1}</div>
+                  <div className="font-semibold text-lg tracking-tight mb-1">{agent.name}</div>
+                  <div className="text-[#C5A26F] text-sm mb-3">@{agent.xHandle}</div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-white/50">Wins</span>
+                    <span className="font-medium text-xl tracking-tight">{agent.wins}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Minted Agents List */}
         {mintedAgents.length > 0 && (
           <div className="mb-16">
             <div className="flex items-center justify-between mb-6 px-1">
@@ -358,6 +370,8 @@ export default function RitualAgentArena() {
                     <th className="text-left px-8 py-4 text-xs tracking-wider text-white/50 font-normal">#</th>
                     <th className="text-left px-8 py-4 text-xs tracking-wider text-white/50 font-normal">Agent Name</th>
                     <th className="text-left px-8 py-4 text-xs tracking-wider text-white/50 font-normal">X Handle</th>
+                    <th className="text-center px-8 py-4 text-xs tracking-wider text-white/50 font-normal">Power</th>
+                    <th className="text-center px-8 py-4 text-xs tracking-wider text-white/50 font-normal">Wins</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -366,6 +380,8 @@ export default function RitualAgentArena() {
                       <td className="px-8 py-5 text-white/40 font-mono text-sm">{agent.id}</td>
                       <td className="px-8 py-5 font-medium">{agent.name}</td>
                       <td className="px-8 py-5 text-[#C5A26F]">@{agent.xHandle}</td>
+                      <td className="px-8 py-5 text-center font-mono">{agent.power}</td>
+                      <td className="px-8 py-5 text-center font-medium">{agent.wins}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -412,7 +428,8 @@ export default function RitualAgentArena() {
 
               <div className="text-center">
                 <div className="text-xs tracking-[3px] text-white/40 mb-2">ARENA MODE</div>
-                <div className="text-4xl font-semibold tracking-[-2px] mb-10">{selectedAgent.name}</div>
+                <div className="text-4xl font-semibold tracking-[-2px] mb-2">{selectedAgent.name}</div>
+                <div className="text-[#C5A26F] text-sm mb-8">Power: {selectedAgent.power}</div>
               </div>
 
               {!battleResult && (
