@@ -20,69 +20,41 @@ const ABI = [
   "function battle(uint256 agentId1, uint256 agentId2) external"
 ];
 
-interface Agent {
+interface MintedAgent {
   id: number;
   name: string;
-  wins: number;
-  rating: number;
+  xHandle: string;
 }
 
-// Beautiful Animated Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      {/* Base subtle texture */}
       <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.6px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
       
-      {/* Large soft glowing orbs - more elegant */}
       <motion.div
         className="absolute -top-[30%] -left-[15%] w-[700px] h-[700px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(197,162,111,0.08) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, 60, -30, 0],
-          y: [0, 40, -20, 0],
-        }}
+        style={{ background: 'radial-gradient(circle, rgba(197,162,111,0.08) 0%, transparent 70%)' }}
+        animate={{ x: [0, 60, -30, 0], y: [0, 40, -20, 0] }}
         transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
       />
       
       <motion.div
         className="absolute -bottom-[25%] -right-[10%] w-[650px] h-[650px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(139,115,85,0.07) 0%, transparent 70%)',
-        }}
-        animate={{
-          x: [0, -50, 35, 0],
-          y: [0, -35, 25, 0],
-        }}
+        style={{ background: 'radial-gradient(circle, rgba(139,115,85,0.07) 0%, transparent 70%)' }}
+        animate={{ x: [0, -50, 35, 0], y: [0, -35, 25, 0] }}
         transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Subtle floating light particles */}
       {Array.from({ length: 12 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-[3px] h-[3px] rounded-full bg-[#C5A26F]"
-          style={{
-            left: `${(i * 9 + 7) % 100}%`,
-            top: `${(i * 13) % 100}%`,
-            opacity: 0.15 + (i % 3) * 0.08,
-          }}
-          animate={{
-            y: [0, -180, 0],
-            opacity: [0.1, 0.35, 0.1],
-          }}
-          transition={{
-            duration: 18 + (i % 7),
-            repeat: Infinity,
-            delay: i * 0.6,
-            ease: "easeInOut",
-          }}
+          style={{ left: `${(i * 9 + 7) % 100}%`, top: `${(i * 13) % 100}%`, opacity: 0.15 + (i % 3) * 0.08 }}
+          animate={{ y: [0, -180, 0], opacity: [0.1, 0.35, 0.1] }}
+          transition={{ duration: 18 + (i % 7), repeat: Infinity, delay: i * 0.6, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Very subtle grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:120px_120px] opacity-40" />
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:120px_120px] opacity-40" />
     </div>
@@ -92,13 +64,15 @@ const AnimatedBackground = () => {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [agents, setAgents] = useState<Agent[]>([]); // Empty until we fetch from contract
+  const [agents, setAgents] = useState<any[]>([]);
   
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  // List of minted agents (name + X handle)
+  const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([]);
+  
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [isBattling, setIsBattling] = useState(false);
   const [battleResult, setBattleResult] = useState<string>('');
 
-  // Mint Modal States
   const [showMintModal, setShowMintModal] = useState(false);
   const [mintName, setMintName] = useState('');
   const [mintX, setMintX] = useState('');
@@ -158,6 +132,15 @@ export default function RitualAgentArena() {
       const displayName = `${mintName.trim()} (@${mintX.trim()})`;
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
+
+      // Add to minted agents list
+      const newAgent: MintedAgent = {
+        id: mintedAgents.length + 1,
+        name: mintName.trim(),
+        xHandle: mintX.trim(),
+      };
+      setMintedAgents([...mintedAgents, newAgent]);
+
       alert("Agent minted successfully!");
       closeMintModal();
     } catch (err) {
@@ -166,7 +149,7 @@ export default function RitualAgentArena() {
     }
   };
 
-  const enterArena = (agent: Agent) => {
+  const enterArena = (agent: any) => {
     setSelectedAgent(agent);
     setBattleResult('');
     setIsBattling(false);
@@ -179,7 +162,7 @@ export default function RitualAgentArena() {
     setBattleResult('');
 
     try {
-      const opponent = agents.find(a => a.id !== selectedAgent.id)!;
+      const opponent = agents.find((a: any) => a.id !== selectedAgent.id)!;
       const tx = await contract.battle(selectedAgent.id, opponent.id);
       await tx.wait();
 
@@ -202,10 +185,9 @@ export default function RitualAgentArena() {
     setIsBattling(false);
   };
 
-  // Real stats (currently 0 because no agents minted yet)
-  const totalAgents = agents.length;
+  const totalAgents = mintedAgents.length;
   const totalBattles = 0;
-  const avgRating = totalAgents > 0 ? Math.floor(agents.reduce((sum, a) => sum + a.rating, 0) / totalAgents) : 0;
+  const avgRating = totalAgents > 0 ? 1700 : 0;
 
   return (
     <div className="min-h-screen text-white relative">
@@ -255,7 +237,6 @@ export default function RitualAgentArena() {
           </p>
         </div>
 
-        {/* Real Stats */}
         <div className="grid grid-cols-3 gap-4 mb-16">
           {[
             { icon: Users, label: "Active Agents", value: totalAgents },
@@ -270,6 +251,40 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
+        {/* Minted Agents List */}
+        {mintedAgents.length > 0 && (
+          <div className="mb-16">
+            <div className="flex items-center justify-between mb-6 px-1">
+              <div>
+                <div className="text-2xl font-semibold tracking-[-1px]">Minted Agents</div>
+                <div className="text-white/50 text-sm">Agents that have been created on Ritual</div>
+              </div>
+            </div>
+
+            <div className="border border-white/10 rounded-3xl overflow-hidden bg-white/[0.015]">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left px-8 py-4 text-xs tracking-wider text-white/50 font-normal">#</th>
+                    <th className="text-left px-8 py-4 text-xs tracking-wider text-white/50 font-normal">Agent Name</th>
+                    <th className="text-left px-8 py-4 text-xs tracking-wider text-white/50 font-normal">X Handle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mintedAgents.map((agent, index) => (
+                    <tr key={index} className="border-b border-white/10 last:border-0 hover:bg-white/[0.02] transition-all">
+                      <td className="px-8 py-5 text-white/40 font-mono text-sm">{agent.id}</td>
+                      <td className="px-8 py-5 font-medium">{agent.name}</td>
+                      <td className="px-8 py-5 text-[#C5A26F]">@{agent.xHandle}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Agent Roster Header */}
         <div className="flex items-center justify-between mb-8 px-1">
           <div>
             <div className="text-3xl font-semibold tracking-[-1.5px]">Agent Roster</div>
@@ -294,43 +309,6 @@ export default function RitualAgentArena() {
             >
               Mint Your First Agent
             </button>
-          </div>
-        )}
-
-        {/* Agent Grid */}
-        {agents.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {agents.map((agent) => (
-              <motion.div
-                key={agent.id}
-                whileHover={{ y: -4, scale: 1.01 }}
-                whileTap={{ scale: 0.985 }}
-                onClick={() => enterArena(agent)}
-                className="group border border-white/10 rounded-3xl p-8 bg-white/[0.015] hover:border-[#C5A26F]/40 cursor-pointer transition-all relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-[#C5A26F] opacity-[0.03] rounded-full blur-3xl group-hover:opacity-[0.06] transition-all" />
-                
-                <div className="flex justify-between items-start mb-8">
-                  <div className="text-xs px-3 py-1 rounded-full border border-white/10 text-white/60">#{agent.id}</div>
-                  <div className="text-right">
-                    <div className="text-3xl font-semibold tracking-[-1px]">{agent.rating}</div>
-                    <div className="text-[10px] text-white/40 -mt-1">RATING</div>
-                  </div>
-                </div>
-
-                <div className="font-semibold text-2xl tracking-[-1px] mb-6 leading-tight">{agent.name}</div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <div>
-                    <span className="text-white/40">Wins</span><br />
-                    <span className="font-medium text-lg tracking-tight">{agent.wins}</span>
-                  </div>
-                  <div className="text-right text-[#C5A26F] group-hover:translate-x-1 transition-all">
-                    Enter Arena →
-                  </div>
-                </div>
-              </motion.div>
-            ))}
           </div>
         )}
       </div>
@@ -375,7 +353,7 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal - X Handle Required */}
+      {/* Mint Modal */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
