@@ -29,48 +29,85 @@ interface MintedAgent {
   wins: number;
 }
 
-// Dynamic Animated Background
+// New Elegant & Beautiful Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      <div className="absolute inset-0 bg-[radial-gradient(#1C1C20_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-50" />
-      
+      {/* Base soft gradient */}
+      <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.6px,transparent_1px)] bg-[length:4px_4px] opacity-40" />
+
+      {/* Large soft aurora / mesh gradient orbs */}
       <motion.div
-        className="absolute -top-[30%] -left-[15%] w-[900px] h-[900px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 40% 40%, rgba(197,162,111,0.09) 0%, transparent 60%)' }}
-        animate={{ x: [0, 120, -60, 0], y: [0, 70, -35, 0], scale: [1, 1.12, 0.94, 1] }}
-        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
-      />
-      
-      <motion.div
-        className="absolute -bottom-[25%] -right-[12%] w-[820px] h-[820px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 60% 60%, rgba(139,115,85,0.08) 0%, transparent 60%)' }}
-        animate={{ x: [0, -90, 45, 0], y: [0, -55, 30, 0], scale: [1, 1.1, 0.95, 1] }}
-        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-[40%] left-[10%] w-[1100px] h-[1100px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle, rgba(197,162,111,0.06) 0%, transparent 70%)',
+        }}
+        animate={{
+          x: [0, 80, -50, 0],
+          y: [0, 60, -40, 0],
+        }}
+        transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {Array.from({ length: 4 }).map((_, i) => (
+      <motion.div
+        className="absolute -bottom-[35%] right-[5%] w-[950px] h-[950px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle, rgba(180,140,90,0.05) 0%, transparent 70%)',
+        }}
+        animate={{
+          x: [0, -70, 40, 0],
+          y: [0, -50, 35, 0],
+        }}
+        transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Soft floating light dots */}
+      {Array.from({ length: 9 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-25"
-          style={{ left: `${8 + i * 22}%`, top: `${22 + i * 15}%`, width: `${180 + i * 40}px` }}
-          animate={{ x: [0, 140, -70, 0], opacity: [0.1, 0.4, 0.1] }}
-          transition={{ duration: 18 + i * 2, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute w-[3px] h-[3px] rounded-full bg-[#C5A26F]"
+          style={{
+            left: `${15 + ((i * 11) % 70)}%`,
+            top: `${20 + ((i * 17) % 60)}%`,
+            opacity: 0.2,
+          }}
+          animate={{
+            y: [0, -140, 0],
+            opacity: [0.15, 0.45, 0.15],
+          }}
+          transition={{
+            duration: 22 + (i % 4) * 3,
+            repeat: Infinity,
+            delay: i * 1.2,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
-      {Array.from({ length: 16 }).map((_, i) => (
+      {/* Very subtle moving lines */}
+      {Array.from({ length: 3 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-[2px] h-[2px] bg-[#C5A26F] rounded-full"
-          style={{ left: `${(i * 9 + 5) % 100}%`, top: `${(i * 14) % 100}%` }}
-          animate={{ y: [0, -200, 0], x: [0, (i % 3 === 0 ? 30 : -25), 0], opacity: [0, 0.5, 0], scale: [0.6, 1.8, 0.6] }}
-          transition={{ duration: 14 + (i % 6), repeat: Infinity, delay: i * 0.5, ease: "easeInOut" }}
+          className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-20"
+          style={{
+            left: `${20 + i * 25}%`,
+            top: `${35 + i * 18}%`,
+            width: '220px',
+          }}
+          animate={{
+            x: [0, 90, -50, 0],
+            opacity: [0.08, 0.25, 0.08],
+          }}
+          transition={{
+            duration: 28 + i * 4,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:140px_140px] opacity-30" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:140px_140px] opacity-30" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-25" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-25" />
     </div>
   );
 };
@@ -180,7 +217,6 @@ export default function RitualAgentArena() {
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
 
-      // Generate random power between 72 - 98
       const power = Math.floor(Math.random() * 27) + 72;
 
       const newAgent: MintedAgent = {
@@ -207,7 +243,6 @@ export default function RitualAgentArena() {
     setIsBattling(false);
   };
 
-  // Battle logic berdasarkan power
   const startBattle = async () => {
     if (!selectedAgent || !contract) return;
     
@@ -215,7 +250,6 @@ export default function RitualAgentArena() {
     setBattleResult('');
 
     try {
-      // Pilih opponent secara random
       const opponents = mintedAgents.filter(a => a.id !== selectedAgent.id);
       if (opponents.length === 0) {
         setBattleResult("No other agents to battle");
@@ -225,17 +259,14 @@ export default function RitualAgentArena() {
 
       const opponent = opponents[Math.floor(Math.random() * opponents.length)];
 
-      // Battle berdasarkan power
       const myPower = selectedAgent.power;
       const oppPower = opponent.power;
 
       let resultText = "";
 
       if (myPower > oppPower) {
-        // Menang
         resultText = `Victory! ${selectedAgent.name} defeated ${opponent.name} (${myPower} vs ${oppPower})`;
         
-        // Update wins
         const updated = mintedAgents.map(a => 
           a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a
         );
@@ -265,7 +296,6 @@ export default function RitualAgentArena() {
   const totalBattles = 0;
   const avgRating = totalAgents > 0 ? 1700 : 0;
 
-  // Leaderboard (sorted by wins)
   const leaderboard = [...mintedAgents].sort((a, b) => b.wins - a.wins).slice(0, 5);
 
   return (
@@ -330,7 +360,6 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
-        {/* Leaderboard */}
         {leaderboard.length > 0 && (
           <div className="mb-16">
             <div className="flex items-center gap-3 mb-6 px-1">
@@ -353,7 +382,6 @@ export default function RitualAgentArena() {
           </div>
         )}
 
-        {/* Minted Agents List */}
         {mintedAgents.length > 0 && (
           <div className="mb-16">
             <div className="flex items-center justify-between mb-6 px-1">
