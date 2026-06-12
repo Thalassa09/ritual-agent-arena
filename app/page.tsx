@@ -87,7 +87,6 @@ const generateRandomAgentName = () => {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [agents, setAgents] = useState<any[]>([]);
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([]);
   
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
@@ -212,7 +211,7 @@ export default function RitualAgentArena() {
     }
   };
 
-  const enterArena = (agent: any) => {
+  const enterArena = (agent: MintedAgent) => {
     setSelectedAgent(agent);
     setBattleResult('');
     setIsBattling(false);
@@ -375,7 +374,7 @@ export default function RitualAgentArena() {
                 </thead>
                 <tbody>
                   {mintedAgents.map((agent, index) => (
-                    <tr key={index} className="border-b border-white/10 last:border-0 hover:bg-white/[0.025] transition-all">
+                    <tr key={index} className="border-b border-white/10 last:border-0 hover:bg-white/[0.025] transition-all cursor-pointer" onClick={() => enterArena(agent)}>
                       <td className="px-8 py-6 text-white/40 font-mono text-sm">{agent.id}</td>
                       <td className="px-8 py-6 font-medium text-lg tracking-[-0.5px]">{agent.name}</td>
                       <td className="px-8 py-6 text-[#C5A26F]">@{agent.xHandle}</td>
@@ -399,7 +398,7 @@ export default function RitualAgentArena() {
           </button>
         </div>
 
-        {agents.length === 0 && (
+        {mintedAgents.length === 0 && (
           <div className="border border-white/10 rounded-3xl p-20 text-center bg-white/[0.015]">
             <div className="mx-auto w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-8">
               <Users className="w-9 h-9 text-white/40" />
