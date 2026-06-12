@@ -29,48 +29,92 @@ interface MintedAgent {
   wins: number;
 }
 
-// New Elegant & Beautiful Background
+// Ultra Premium Cinematic Background
 const AnimatedBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#0A0A0B]">
-      <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.6px,transparent_1px)] bg-[length:4px_4px] opacity-40" />
+      {/* Base texture */}
+      <div className="absolute inset-0 bg-[radial-gradient(#1F1F23_0.5px,transparent_1px)] bg-[length:3px_3px] opacity-60" />
 
+      {/* Large moving luxury mesh gradient orbs */}
       <motion.div
-        className="absolute -top-[40%] left-[10%] w-[1100px] h-[1100px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(197,162,111,0.06) 0%, transparent 70%)' }}
-        animate={{ x: [0, 80, -50, 0], y: [0, 60, -40, 0] }}
-        transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-[50%] -left-[20%] w-[1400px] h-[1400px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle at 35% 35%, rgba(197,162,111,0.07) 0%, transparent 65%)',
+        }}
+        animate={{
+          x: [0, 150, -80, 0],
+          y: [0, 90, -60, 0],
+          rotate: [0, 8, -5, 0],
+        }}
+        transition={{ duration: 55, repeat: Infinity, ease: "easeInOut" }}
       />
 
       <motion.div
-        className="absolute -bottom-[35%] right-[5%] w-[950px] h-[950px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(180,140,90,0.05) 0%, transparent 70%)' }}
-        animate={{ x: [0, -70, 40, 0], y: [0, -50, 35, 0] }}
-        transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -bottom-[45%] -right-[15%] w-[1200px] h-[1200px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle at 65% 65%, rgba(170,130,85,0.06) 0%, transparent 65%)',
+        }}
+        animate={{
+          x: [0, -120, 70, 0],
+          y: [0, -80, 50, 0],
+          rotate: [0, -6, 4, 0],
+        }}
+        transition={{ duration: 62, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {Array.from({ length: 9 }).map((_, i) => (
+      {/* Elegant moving light beams */}
+      {Array.from({ length: 5 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-[3px] h-[3px] rounded-full bg-[#C5A26F]"
-          style={{ left: `${15 + ((i * 11) % 70)}%`, top: `${20 + ((i * 17) % 60)}%`, opacity: 0.2 }}
-          animate={{ y: [0, -140, 0], opacity: [0.15, 0.45, 0.15] }}
-          transition={{ duration: 22 + (i % 4) * 3, repeat: Infinity, delay: i * 1.2, ease: "easeInOut" }}
+          className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent"
+          style={{
+            left: `${10 + i * 18}%`,
+            top: `${18 + i * 14}%`,
+            width: `${280 + i * 50}px`,
+            opacity: 0.12 + (i % 3) * 0.04,
+          }}
+          animate={{
+            x: [0, 200, -100, 0],
+            opacity: [0.08, 0.28, 0.08],
+          }}
+          transition={{
+            duration: 32 + i * 4,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
-      {Array.from({ length: 3 }).map((_, i) => (
+      {/* Floating soft geometric dots */}
+      {Array.from({ length: 22 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute h-px bg-gradient-to-r from-transparent via-[#C5A26F] to-transparent opacity-20"
-          style={{ left: `${20 + i * 25}%`, top: `${35 + i * 18}%`, width: '220px' }}
-          animate={{ x: [0, 90, -50, 0], opacity: [0.08, 0.25, 0.08] }}
-          transition={{ duration: 28 + i * 4, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute rounded-full bg-[#C5A26F]"
+          style={{
+            left: `${(i * 7 + 4) % 100}%`,
+            top: `${(i * 11 + 9) % 100}%`,
+            width: i % 5 === 0 ? '3px' : '1.5px',
+            height: i % 5 === 0 ? '3px' : '1.5px',
+          }}
+          animate={{
+            y: [0, -220, 0],
+            x: [0, (i % 4 === 0 ? 45 : -35), 0],
+            opacity: [0, 0.55, 0],
+            scale: [0.6, 1.6, 0.6],
+          }}
+          transition={{
+            duration: 18 + (i % 7) * 2,
+            repeat: Infinity,
+            delay: i * 0.35,
+            ease: "easeInOut",
+          }}
         />
       ))}
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-25" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:160px_160px] opacity-25" />
+      {/* Very subtle grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#161619_1px,transparent_1px)] bg-[length:180px_180px] opacity-30" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#161619_1px,transparent_1px)] bg-[length:180px_180px] opacity-30" />
     </div>
   );
 };
