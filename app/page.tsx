@@ -3,10 +3,15 @@
 import { useState } from 'react';
 import { ethers } from 'ethers';
 
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
 const RITUAL_RPC = 'https://rpc.ritualfoundation.org';
 const RITUAL_CHAIN_ID = 1979;
 
-// Ganti dengan contract address setelah deploy
 const CONTRACT_ADDRESS = '0x411fA6BEBfECE74293AC1B74d1f906688A13763D'; 
 
 const ABI = [
@@ -25,7 +30,7 @@ interface Agent {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [agents, setAgents] = useState<Agent[]>([
+  const [agents] = useState<Agent[]>([
     { id: 1, name: "Shadow Oracle", wins: 12, rating: 1840 },
     { id: 2, name: "Void Weaver", wins: 9, rating: 1720 },
     { id: 3, name: "Nexus Striker", wins: 15, rating: 1910 },
@@ -104,11 +109,9 @@ export default function RitualAgentArena() {
     setIsBattling(true);
 
     try {
-      // Contoh battle vs agent random
       const opponentId = selectedAgent.id === 1 ? 2 : 1;
       const tx = await contract.battle(selectedAgent.id, opponentId);
       await tx.wait();
-      
       setBattleResult(`Battle selesai! Cek explorer untuk hasil.`);
     } catch (err) {
       console.error(err);
