@@ -62,12 +62,7 @@ const AnimatedBackground = () => {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [agents, setAgents] = useState<Agent[]>([
-    { id: 1, name: "Shadow Oracle", wins: 12, rating: 1840 },
-    { id: 2, name: "Void Weaver", wins: 9, rating: 1720 },
-    { id: 3, name: "Nexus Striker", wins: 15, rating: 1910 },
-    { id: 4, name: "Aether Knight", wins: 8, rating: 1650 },
-  ]);
+  const [agents, setAgents] = useState<Agent[]>([]); // Empty until we fetch from contract
   
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isBattling, setIsBattling] = useState(false);
@@ -249,39 +244,59 @@ export default function RitualAgentArena() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {agents.map((agent) => (
-            <motion.div
-              key={agent.id}
-              whileHover={{ y: -4, scale: 1.01 }}
-              whileTap={{ scale: 0.985 }}
-              onClick={() => enterArena(agent)}
-              className="group border border-white/10 rounded-3xl p-8 bg-white/[0.015] hover:border-[#C5A26F]/40 cursor-pointer transition-all relative overflow-hidden"
+        {/* Empty State - No hardcoded agents */}
+        {agents.length === 0 && (
+          <div className="border border-white/10 rounded-3xl p-16 text-center bg-white/[0.015]">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
+              <Users className="w-8 h-8 text-white/40" />
+            </div>
+            <div className="text-2xl font-semibold tracking-tight mb-2">No agents yet</div>
+            <div className="text-white/50 mb-8">Be the first to mint an agent on Ritual</div>
+            <button 
+              onClick={openMintModal}
+              className="px-8 py-3 rounded-full bg-white text-black font-medium hover:bg-[#C5A26F] active:scale-[0.985] transition-all"
             >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-[#C5A26F] opacity-[0.03] rounded-full blur-3xl group-hover:opacity-[0.06] transition-all" />
-              
-              <div className="flex justify-between items-start mb-8">
-                <div className="text-xs px-3 py-1 rounded-full border border-white/10 text-white/60">#{agent.id}</div>
-                <div className="text-right">
-                  <div className="text-3xl font-semibold tracking-[-1px]">{agent.rating}</div>
-                  <div className="text-[10px] text-white/40 -mt-1">RATING</div>
-                </div>
-              </div>
+              Mint Your First Agent
+            </button>
+          </div>
+        )}
 
-              <div className="font-semibold text-2xl tracking-[-1px] mb-6 leading-tight">{agent.name}</div>
+        {/* Agent Grid (when there are agents) */}
+        {agents.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {agents.map((agent) => (
+              <motion.div
+                key={agent.id}
+                whileHover={{ y: -4, scale: 1.01 }}
+                whileTap={{ scale: 0.985 }}
+                onClick={() => enterArena(agent)}
+                className="group border border-white/10 rounded-3xl p-8 bg-white/[0.015] hover:border-[#C5A26F]/40 cursor-pointer transition-all relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-[#C5A26F] opacity-[0.03] rounded-full blur-3xl group-hover:opacity-[0.06] transition-all" />
+                
+                <div className="flex justify-between items-start mb-8">
+                  <div className="text-xs px-3 py-1 rounded-full border border-white/10 text-white/60">#{agent.id}</div>
+                  <div className="text-right">
+                    <div className="text-3xl font-semibold tracking-[-1px]">{agent.rating}</div>
+                    <div className="text-[10px] text-white/40 -mt-1">RATING</div>
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <div>
-                  <span className="text-white/40">Wins</span><br />
-                  <span className="font-medium text-lg tracking-tight">{agent.wins}</span>
+                <div className="font-semibold text-2xl tracking-[-1px] mb-6 leading-tight">{agent.name}</div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <div>
+                    <span className="text-white/40">Wins</span><br />
+                    <span className="font-medium text-lg tracking-tight">{agent.wins}</span>
+                  </div>
+                  <div className="text-right text-[#C5A26F] group-hover:translate-x-1 transition-all">
+                    Enter Arena →
+                  </div>
                 </div>
-                <div className="text-right text-[#C5A26F] group-hover:translate-x-1 transition-all">
-                  Enter Arena →
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Battle Modal */}
@@ -324,7 +339,7 @@ export default function RitualAgentArena() {
         )}
       </AnimatePresence>
 
-      {/* Mint Modal - Premium Version */}
+      {/* Mint Modal */}
       <AnimatePresence>
         {showMintModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6">
