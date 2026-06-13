@@ -660,6 +660,15 @@ export default function RitualAgentArena() {
     if (savedLogs) { try { setBattleLogs(JSON.parse(savedLogs)); } catch (e) { } }
   }, []);
 
+  // Ensure Shadow Garden boss agent always has power 999999 (fix stale localStorage)
+  useEffect(() => {
+    setMintedAgents(prev => {
+      const hasBoss = prev.some(a => a.xHandle.toLowerCase() === 'ohmythalassa' && a.power >= 999999);
+      if (hasBoss) return prev;
+      return prev.map(a => a.xHandle.toLowerCase() === 'ohmythalassa' ? { ...a, power: 999999, wins: Math.max(a.wins, 999) } : a);
+    });
+  }, []);
+
   useEffect(() => {
     if (mintedAgents.length > 0) localStorage.setItem("ritual_agents", JSON.stringify(mintedAgents));
   }, [mintedAgents]);
