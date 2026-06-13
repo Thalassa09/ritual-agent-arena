@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle } from 'lucide-react';
 import { ethers } from 'ethers';
