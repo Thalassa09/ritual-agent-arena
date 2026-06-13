@@ -233,6 +233,131 @@ const AnimatedBackground = () => (
         transition={{ duration: beam.dur, repeat: Infinity, ease: 'easeInOut' }}
       />
     ))}
+
+    {/* Floating themed emojis */}
+    {[
+      { e: '⚔️', x: '8%', y: '15%', size: 28, dur: 25, dy: -60 },
+      { e: '🔥', x: '85%', y: '25%', size: 22, dur: 30, dy: -80 },
+      { e: '⚡', x: '20%', y: '70%', size: 26, dur: 22, dy: -50 },
+      { e: '💎', x: '75%', y: '80%', size: 20, dur: 28, dy: -70 },
+      { e: '🛡️', x: '45%', y: '10%', size: 24, dur: 32, dy: -55 },
+      { e: '✨', x: '60%', y: '60%', size: 18, dur: 20, dy: -90 },
+      { e: '🌟', x: '15%', y: '45%', size: 20, dur: 26, dy: -65 },
+      { e: '💀', x: '90%', y: '55%', size: 22, dur: 24, dy: -45 },
+      { e: '👑', x: '35%', y: '85%', size: 24, dur: 28, dy: -75 },
+      { e: '🗡️', x: '55%', y: '35%', size: 20, dur: 22, dy: -60 },
+      { e: '💫', x: '70%', y: '12%', size: 18, dur: 30, dy: -50 },
+      { e: '🎯', x: '25%', y: '55%', size: 22, dur: 26, dy: -70 },
+      { e: '🏆', x: '50%', y: '90%', size: 26, dur: 24, dy: -80 },
+      { e: '💥', x: '80%', y: '45%', size: 20, dur: 20, dy: -55 },
+      { e: '🔮', x: '10%', y: '90%', size: 22, dur: 28, dy: -65 },
+    ].map((item, i) => (
+      <motion.div
+        key={`emoji-${i}`}
+        className="absolute select-none pointer-events-none"
+        style={{
+          left: item.x, top: item.y,
+          fontSize: item.size,
+          filter: 'blur(0.5px)',
+          opacity: 0.12,
+        }}
+        animate={{
+          y: [0, item.dy, 0],
+          x: [0, (i % 2 === 0 ? 20 : -20), 0],
+          rotate: [0, (i % 2 === 0 ? 15 : -15), 0],
+          opacity: [0.06, 0.15, 0.06],
+          scale: [0.9, 1.1, 0.9],
+        }}
+        transition={{
+          duration: item.dur,
+          repeat: Infinity,
+          delay: i * 1.2,
+          ease: 'easeInOut',
+        }}
+      >
+        {item.e}
+      </motion.div>
+    ))}
+
+    {/* Energy rings — expanding from center */}
+    {[0, 1, 2, 3, 4].map(i => (
+      <motion.div
+        key={`ring-${i}`}
+        className="absolute rounded-full"
+        style={{
+          left: '50%', top: '50%',
+          transform: 'translate(-50%, -50%)',
+          border: '1px solid rgba(16,185,129,0.06)',
+        }}
+        initial={{ width: 50, height: 50, opacity: 0.3 }}
+        animate={{
+          width: [50, 600 + i * 100],
+          height: [50, 600 + i * 100],
+          opacity: [0.2, 0],
+          borderWidth: [1, 0.5],
+        }}
+        transition={{
+          duration: 8 + i * 2,
+          repeat: Infinity,
+          delay: i * 2,
+          ease: 'easeOut',
+        }}
+      />
+    ))}
+
+    {/* Twinkling sparkle stars */}
+    {Array.from({ length: 35 }).map((_, i) => (
+      <motion.div
+        key={`star-${i}`}
+        className="absolute rounded-full"
+        style={{
+          width: 2 + (i % 3), height: 2 + (i % 3),
+          left: `${(i * 2.85 + 1) % 100}%`,
+          top: `${(i * 2.7 + 2) % 100}%`,
+          backgroundColor: ['#10B981', '#34D399', '#84CC16', '#FBBF24', '#60A5FA', '#A78BFA'][i % 6],
+          boxShadow: `0 0 4px ${['#10B981', '#34D399', '#84CC16', '#FBBF24', '#60A5FA', '#A78BFA'][i % 6]}60`,
+        }}
+        animate={{
+          opacity: [0, 0.8, 0],
+          scale: [0.5, 1.5, 0.5],
+        }}
+        transition={{
+          duration: 2 + (i % 4),
+          repeat: Infinity,
+          delay: i * 0.4,
+          ease: 'easeInOut',
+        }}
+      />
+    ))}
+
+    {/* Diagonal light streaks */}
+    {[
+      { x1: '10%', y1: '0%', angle: 35, len: 200, dur: 12, delay: 0 },
+      { x1: '60%', y1: '20%', angle: 25, len: 150, dur: 15, delay: 4 },
+      { x1: '30%', y1: '50%', angle: 40, len: 180, dur: 10, delay: 8 },
+    ].map((streak, i) => (
+      <motion.div
+        key={`streak-${i}`}
+        className="absolute"
+        style={{
+          left: streak.x1, top: streak.y1,
+          width: streak.len, height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.04), rgba(132,204,22,0.03), transparent)',
+          transform: `rotate(${streak.angle}deg)`,
+          filter: 'blur(1px)',
+        }}
+        animate={{
+          x: [-100, 300],
+          opacity: [0, 0.6, 0],
+        }}
+        transition={{
+          duration: streak.dur,
+          repeat: Infinity,
+          delay: streak.delay,
+          ease: 'easeInOut',
+        }}
+      />
+    ))}
   </div>
 );
 
@@ -271,6 +396,80 @@ const ConfettiExplosion = ({ active }: { active: boolean }) => {
     </div>
   );
 };
+
+/* ══════════════════════════════════════════════════════════════════
+   MOUSE SPOTLIGHT — follows cursor with emerald glow
+   ══════════════════════════════════════════════════════════════════ */
+const MouseSpotlight = () => {
+  const [pos, setPos] = useState({ x: -200, y: -200 });
+  useEffect(() => {
+    const handler = (e: MouseEvent) => setPos({ x: e.clientX, y: e.clientY });
+    window.addEventListener('mousemove', handler);
+    return () => window.removeEventListener('mousemove', handler);
+  }, []);
+  return (
+    <div
+      className="fixed pointer-events-none z-[1]"
+      style={{
+        left: pos.x - 200, top: pos.y - 200,
+        width: 400, height: 400,
+        background: 'radial-gradient(circle, rgba(16,185,129,0.04) 0%, transparent 70%)',
+        transition: 'left 0.1s ease-out, top 0.1s ease-out',
+      }}
+    />
+  );
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   FLOATING RING DECORATION — animated concentric rings
+   ══════════════════════════════════════════════════════════════════ */
+const FloatingRings = () => (
+  <div className="fixed inset-0 z-[-1] pointer-events-none flex items-center justify-center">
+    {[180, 280, 400, 540].map((size, i) => (
+      <motion.div
+        key={i}
+        className="absolute rounded-full"
+        style={{
+          width: size, height: size,
+          border: `1px solid rgba(16,185,129,${0.04 - i * 0.008})`,
+        }}
+        animate={{
+          rotate: i % 2 === 0 ? [0, 360] : [360, 0],
+          scale: [1, 1.05, 1],
+        }}
+        transition={{
+          rotate: { duration: 30 + i * 15, repeat: Infinity, ease: 'linear' },
+          scale: { duration: 6 + i * 2, repeat: Infinity, ease: 'easeInOut' },
+        }}
+      />
+    ))}
+  </div>
+);
+
+/* ══════════════════════════════════════════════════════════════════
+   ANIMATED GRADIENT BORDER — rotating conic gradient
+   ══════════════════════════════════════════════════════════════════ */
+const GlowCard = ({ children, color = '#10B981', className = '', style = {}, ...props }: any) => (
+  <motion.div
+    className={`relative rounded-xl overflow-hidden ${className}`}
+    {...props}
+  >
+    {/* Rotating gradient border */}
+    <motion.div
+      className="absolute inset-0 rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-500"
+      style={{
+        background: `conic-gradient(from 0deg, transparent, ${color}30, transparent, ${color}20, transparent)`,
+        padding: 1,
+        mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+        maskComposite: 'exclude',
+        WebkitMaskComposite: 'xor',
+      }}
+      animate={{ rotate: [0, 360] }}
+      transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+    />
+    {children}
+  </motion.div>
+);
 
 /* ══════════════════════════════════════════════════════════════════
    POWER BAR
@@ -721,6 +920,53 @@ export default function RitualAgentArena() {
           animate={{ opacity: [0.3, 0.8, 0.3], scaleX: [0.8, 1.2, 0.8] }}
           transition={{ duration: 3, repeat: Infinity }}
         />
+
+        {/* Floating decorative rings around hero */}
+        <div className="relative flex justify-center mt-4">
+          {[60, 100, 150].map((size, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: size, height: size, top: -size / 2 - 20,
+                border: `1px solid rgba(16,185,129,${0.08 - i * 0.02})`,
+                borderStyle: i % 2 === 0 ? 'dashed' : 'solid',
+              }}
+              animate={{
+                rotate: i % 2 === 0 ? [0, 360] : [360, 0],
+                scale: [1, 1.08, 1],
+              }}
+              transition={{
+                rotate: { duration: 20 + i * 10, repeat: Infinity, ease: 'linear' },
+                scale: { duration: 4 + i * 1.5, repeat: Infinity, ease: 'easeInOut' },
+              }}
+            />
+          ))}
+          {/* Orbiting dots */}
+          {[0, 1, 2].map(i => (
+            <motion.div
+              key={`orbit-${i}`}
+              className="absolute w-2 h-2 rounded-full"
+              animate={{
+                rotate: [0, 360],
+                x: [0, 70 + i * 20, 0],
+                y: [0, 0, 0],
+              }}
+              transition={{
+                duration: 8 + i * 3,
+                repeat: Infinity,
+                ease: 'linear',
+                delay: i * 2,
+              }}
+              style={{
+                backgroundColor: ['#10B981', '#84CC16', '#34D399'][i],
+                boxShadow: `0 0 6px ${['#10B981', '#84CC16', '#34D399'][i]}80`,
+                transformOrigin: `0px ${90 + i * 15}px`,
+                top: -90, left: '50%',
+              }}
+            />
+          ))}
+        </div>
       </motion.div>
 
       {/* Stats Row */}
@@ -1621,6 +1867,8 @@ export default function RitualAgentArena() {
   return (
     <div className="min-h-screen" style={{ color: '#f0f2f0' }}>
       <AnimatedBackground />
+      <FloatingRings />
+      <MouseSpotlight />
       <ConfettiExplosion active={showConfetti} />
       <Navbar />
 
