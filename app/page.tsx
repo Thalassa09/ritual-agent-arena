@@ -619,6 +619,7 @@ export default function RitualAgentArena() {
   const [activeView, setActiveView] = useState<'dashboard' | 'arena' | 'agents' | 'profile'>('dashboard');
   const [soundMuted, setSoundMuted] = useState(false);
   const [selectedProfileAgent, setSelectedProfileAgent] = useState<MintedAgent | null>(null);
+  const [opponentSearch, setOpponentSearch] = useState('');
 
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
     { id: 1, name: "Shadow Oracle", xHandle: "shadow_ai", wallet: "0x0000", power: 83, wins: 12, tokenId: 1 },
@@ -680,6 +681,11 @@ export default function RitualAgentArena() {
   const myAgents = useMemo(
     () => account ? mintedAgents.filter(a => a.wallet.toLowerCase() === account.toLowerCase()) : [],
     [mintedAgents, account]
+  );
+
+  const availableOpponents = useMemo(
+    () => selectedAgent ? mintedAgents.filter(a => a.id !== selectedAgent.id) : mintedAgents,
+    [mintedAgents, selectedAgent]
   );
 
   const totalAgents = mintedAgents.length;
@@ -814,12 +820,14 @@ export default function RitualAgentArena() {
     setSelectedAgent(agent);
     setBattleResult(null);
     setOpponent(null);
+    setOpponentSearch('');
     setIsBattling(false);
     setActiveView('arena');
   };
 
   const startBattle = async () => {
     if (!selectedAgent) return;
+    if (!opponent) { alert("Select an opponent first!"); return; }
     if (!account) { alert("Connect wallet first!"); return; }
     if (selectedAgent.wallet.toLowerCase() !== account.toLowerCase()) {
       alert("You can only battle with your own agent!");
@@ -830,39 +838,30 @@ export default function RitualAgentArena() {
     setIsBattleAnimating(true);
     setBattleResult(null);
 
-    // Opponent: any OTHER agent (not your own)
-    const opponents = mintedAgents.filter(a => a.id !== selectedAgent.id);
-    if (opponents.length === 0) {
-      setBattleResult({ text: "No opponents available", type: 'draw' });
+    // Calculate local result — Shadow Garden (power 999999) always wins
+    const myPower = selectedAgent.power >= 999999 ? Infinity : selectedAgent.power + Math.random() * 10;
+    const oppPower = opponent.power >= 999999 ? Infinity : opponent.power + Math.random() * 10;
+    const localWin = myPower > oppPower;
+    const localDraw = myPower === oppPower;
+
+    soundManager.battle(); // battle start sound
+
+    // On-chain battle — mandatory for all battles
+    let txHash: string;
+    if (!contract) {
+      alert("Connect wallet to battle on-chain!");
       setIsBattling(false); setIsBattleAnimating(false);
       return;
     }
 
-    const opp = opponents[Math.floor(Math.random() * opponents.length)];
-    setOpponent(opp);
-
-    // Calculate local result — Shadow Garden (power 999999) always wins
-    const myPower = selectedAgent.power >= 999999 ? Infinity : selectedAgent.power + Math.random() * 10;
-    const oppPower = opp.power >= 999999 ? Infinity : opp.power + Math.random() * 10;
-    const localWin = myPower > oppPower;
-    const localDraw = myPower === oppPower; // only if both are Infinity (impossible)
-
-    soundManager.battle(); // battle start sound
-
-    // Call on-chain battle if contract is available and both agents have tokenIds
-    let txHash: string;
-    if (contract && selectedAgent.tokenId && opp.tokenId) {
-      try {
-        const tx = await contract.battle(selectedAgent.tokenId, opp.tokenId);
-        const receipt = await tx.wait();
-        txHash = receipt.hash;
-        console.log(`Battle tx confirmed: ${txHash}`);
-      } catch (err: any) {
-        console.warn("On-chain battle failed, using local result:", err.message);
-        txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      }
-    } else {
-      // Generate local tx hash for off-chain battles
+    try {
+      const tx = await contract.battle(selectedAgent.tokenId || 0, opponent.tokenId || 0);
+      const receipt = await tx.wait();
+      txHash = receipt.hash;
+      console.log(`Battle tx confirmed: ${txHash}`);
+    } catch (err: any) {
+      console.error("On-chain battle failed:", err.message);
+      // Generate local tx hash as fallback so battle still records
       txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
     }
 
@@ -871,7 +870,7 @@ export default function RitualAgentArena() {
 
     let result: { text: string; type: 'win' | 'lose' | 'draw' };
     if (localWin && !localDraw) {
-      result = { text: `${selectedAgent.name} defeated ${opp.name}!`, type: 'win' };
+      result = { text: `${selectedAgent.name} defeated ${opponent.name}!`, type: 'win' };
       setMintedAgents(prev => prev.map(a =>
         a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a
       ));
@@ -879,7 +878,7 @@ export default function RitualAgentArena() {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3000);
     } else if (!localDraw) {
-      result = { text: `${opp.name} overpowered ${selectedAgent.name}`, type: 'lose' };
+      result = { text: `${opponent.name} overpowered ${selectedAgent.name}`, type: 'lose' };
     } else {
       result = { text: `Draw! Equal power`, type: 'draw' };
     }
@@ -887,8 +886,8 @@ export default function RitualAgentArena() {
     setBattleLogs(prev => [{
       id: prev.length + 1,
       attacker: selectedAgent.name,
-      defender: opp.name,
-      winner: result.type === 'win' ? selectedAgent.name : opp.name,
+      defender: opponent.name,
+      winner: result.type === 'win' ? selectedAgent.name : opponent.name,
       timestamp: Date.now(),
       txHash,
     }, ...prev].slice(0, 50));
@@ -1587,21 +1586,11 @@ export default function RitualAgentArena() {
                         {getInitials(opponent.name)}
                       </motion.div>
                       <div className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{opponent.name}</div>
-                      <div className="text-xs mt-1" style={{ color: getPowerColor(opponent.power) }}>Power {opponent.power}</div>
+                      <div className="text-xs mt-1" style={{ color: getPowerColor(opponent.power) }}>Power {getPowerDisplay(opponent.power)}</div>
                       <div className="text-[10px] mt-0.5" style={{ color: 'rgba(245,158,11,0.6)' }}>{opponent.wins} wins</div>
                     </>
                   ) : (
-                    <>
-                      <motion.div
-                        className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-2"
-                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}
-                        animate={{ opacity: [0.4, 0.8, 0.4] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        <span className="text-2xl">?</span>
-                      </motion.div>
-                      <div className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>???</div>
-                    </>
+                    <></>
                   )}
                 </motion.div>
               </div>
@@ -1638,19 +1627,102 @@ export default function RitualAgentArena() {
               )}
 
               {!battleResult && !isBattleAnimating && (
-                <motion.button
-                  onClick={startBattle}
-                  disabled={isBattling}
-                  className="w-full py-4 rounded-xl text-sm font-bold text-black flex items-center justify-center gap-2"
-                  style={{
-                    background: 'linear-gradient(135deg, #10B981, #059669)',
-                    boxShadow: '0 0 30px rgba(16,185,129,0.2)',
-                  }}
-                  whileHover={{ scale: 1.01, boxShadow: '0 0 40px rgba(16,185,129,0.35)' }}
-                  whileTap={{ scale: 0.99 }}
-                >
-                  INITIATE BATTLE <Sword className="w-4 h-4" />
-                </motion.button>
+                <>
+                  {/* Opponent Selection */}
+                  {!opponent && (
+                    <div className="mb-6">
+                      <div className="text-[10px] font-medium tracking-[2px] uppercase mb-3 text-center" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        Choose Your Opponent
+                      </div>
+                      {/* Search */}
+                      <div className="relative mb-3">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.2)' }} />
+                        <input
+                          type="text"
+                          value={opponentSearch}
+                          onChange={(e) => setOpponentSearch(e.target.value)}
+                          placeholder="Search by name or X handle..."
+                          className="w-full pl-9 pr-4 py-2.5 rounded-lg text-xs bg-transparent focus:outline-none"
+                          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#f0f2f0' }}
+                        />
+                      </div>
+                      {/* Opponent grid */}
+                      <div className="grid grid-cols-2 gap-2 max-h-[240px] overflow-y-auto pr-1">
+                        {availableOpponents
+                          .filter(a => {
+                            if (!opponentSearch) return true;
+                            const q = opponentSearch.toLowerCase();
+                            return a.name.toLowerCase().includes(q) || a.xHandle.toLowerCase().includes(q);
+                          })
+                          .map((agent, i) => {
+                            const isBoss = isBossAgent(agent.power);
+                            return (
+                              <motion.div
+                                key={agent.id}
+                                className="rounded-lg p-3 cursor-pointer relative overflow-hidden"
+                                style={{
+                                  background: 'rgba(255,255,255,0.015)',
+                                  border: `1px solid ${isBoss ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.04)'}`,
+                                }}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.03 }}
+                                whileHover={{ borderColor: isBoss ? 'rgba(168,85,247,0.4)' : 'rgba(16,185,129,0.2)', y: -2 }}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => { setOpponent(agent); soundManager.click(); }}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-black flex-shrink-0"
+                                    style={{ background: getAgentAvatar(agent.name) }}
+                                  >
+                                    {getInitials(agent.name)}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-semibold truncate" style={{ color: '#f0f2f0' }}>{agent.name}</span>
+                                      {isBoss && <Crown className="w-2.5 h-2.5 flex-shrink-0" style={{ color: '#A855F7' }} />}
+                                    </div>
+                                    <div className="text-[10px] truncate" style={{ color: 'rgba(52,211,153,0.5)' }}>@{agent.xHandle}</div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <div className="text-xs font-semibold" style={{ color: getPowerColor(agent.power) }}>{getPowerDisplay(agent.power)}</div>
+                                    <div className="text-[9px]" style={{ color: 'rgba(245,158,11,0.5)' }}>{agent.wins}W</div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        {availableOpponents.filter(a => {
+                          if (!opponentSearch) return true;
+                          const q = opponentSearch.toLowerCase();
+                          return a.name.toLowerCase().includes(q) || a.xHandle.toLowerCase().includes(q);
+                        }).length === 0 && (
+                          <div className="col-span-2 text-center py-6 text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                            No opponents found
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Battle Button */}
+                  <motion.button
+                    onClick={startBattle}
+                    disabled={isBattling || !opponent}
+                    className="w-full py-4 rounded-xl text-sm font-bold text-black flex items-center justify-center gap-2"
+                    style={{
+                      background: opponent ? 'linear-gradient(135deg, #10B981, #059669)' : 'rgba(255,255,255,0.05)',
+                      boxShadow: opponent ? '0 0 30px rgba(16,185,129,0.2)' : 'none',
+                      color: opponent ? '#000' : 'rgba(255,255,255,0.2)',
+                      cursor: opponent ? 'pointer' : 'not-allowed',
+                    }}
+                    whileHover={opponent ? { scale: 1.01, boxShadow: '0 0 40px rgba(16,185,129,0.35)' } : {}}
+                    whileTap={opponent ? { scale: 0.99 } : {}}
+                  >
+                    {opponent ? <>INITIATE BATTLE <Sword className="w-4 h-4" /></> : 'Select an opponent first'}
+                  </motion.button>
+                </>
               )}
 
               {battleResult && (
