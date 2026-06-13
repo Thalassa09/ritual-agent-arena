@@ -31,6 +31,7 @@ interface MintedAgent {
   wallet: string;
   power: number;
   wins: number;
+  tokenId?: number;
 }
 
 interface BattleLog {
@@ -39,6 +40,7 @@ interface BattleLog {
   defender: string;
   winner: string;
   timestamp: number;
+  txHash?: string;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -46,6 +48,7 @@ interface BattleLog {
    ══════════════════════════════════════════════════════════════════ */
 const ADMIN_X_HANDLES = ["ohmythalassa"];
 const ADMIN_ADDRESSES = ["0x3883f0ddccc55ac112173bc67584952bf13b1a7d"];
+const RITUAL_EXPLORER = "https://ritual-testnet.explorer.caldera.xyz";
 
 const randomNames = [
   "Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift",
@@ -529,11 +532,11 @@ export default function RitualAgentArena() {
   const [activeView, setActiveView] = useState<'dashboard' | 'arena' | 'agents'>('dashboard');
 
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
-    { id: 1, name: "Shadow Oracle", xHandle: "shadow_ai", wallet: "0x0000", power: 83, wins: 12 },
-    { id: 2, name: "Void Weaver", xHandle: "void_ops", wallet: "0x0001", power: 79, wins: 9 },
-    { id: 3, name: "Nexus Striker", xHandle: "nexus_defi", wallet: "0x0002", power: 84, wins: 15 },
-    { id: 4, name: "Aether Knight", xHandle: "aether_net", wallet: "0x0003", power: 76, wins: 8 },
-    { id: 5, name: "Eclipse Reaper", xHandle: "eclipse_dao", wallet: "0x0004", power: 81, wins: 11 },
+    { id: 1, name: "Shadow Oracle", xHandle: "shadow_ai", wallet: "0x0000", power: 83, wins: 12, tokenId: 1 },
+    { id: 2, name: "Void Weaver", xHandle: "void_ops", wallet: "0x0001", power: 79, wins: 9, tokenId: 2 },
+    { id: 3, name: "Nexus Striker", xHandle: "nexus_defi", wallet: "0x0002", power: 84, wins: 15, tokenId: 3 },
+    { id: 4, name: "Aether Knight", xHandle: "aether_net", wallet: "0x0003", power: 76, wins: 8, tokenId: 4 },
+    { id: 5, name: "Eclipse Reaper", xHandle: "eclipse_dao", wallet: "0x0004", power: 81, wins: 11, tokenId: 5 },
   ]);
 
   const [battleLogs, setBattleLogs] = useState<BattleLog[]>([
@@ -671,11 +674,28 @@ export default function RitualAgentArena() {
     try {
       const displayName = `${mintName.trim()} (@${mintX.trim()})`;
       const tx = await contract.mintAgent(displayName);
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      // Get tokenId from tx receipt — try parsing Transfer event or return value
+      let tokenId = mintedAgents.length + 1; // fallback
+      try {
+        // ERC-721 Transfer event: from=0x0 means mint
+        const transferLog = receipt.logs?.find((log: any) => {
+          try {
+            const parsed = contract.interface.parseLog({ topics: log.topics as string[], data: log.data });
+            return parsed?.name === 'Transfer';
+          } catch { return false; }
+        });
+        if (transferLog) {
+          const parsed = contract.interface.parseLog({ topics: transferLog.topics as string[], data: transferLog.data });
+          if (parsed) tokenId = Number(parsed.args.tokenId);
+        }
+      } catch (e) { console.log('Could not parse tokenId from receipt, using fallback'); }
+
       const power = Math.floor(Math.random() * 16) + 80;
-      const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: mintName.trim(), xHandle: mintX.trim(), wallet: account, power, wins: 0 };
+      const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: mintName.trim(), xHandle: mintX.trim(), wallet: account, power, wins: 0, tokenId };
       setMintedAgents(prev => [...prev, newAgent]);
-      alert("Agent minted successfully!");
+      alert(`Agent minted! Token ID: ${tokenId}\nTx: ${receipt.hash}`);
       setShowMintModal(false);
     } catch (err) { console.error(err); alert("Mint failed"); }
   };
@@ -721,22 +741,38 @@ export default function RitualAgentArena() {
     const opp = opponents[Math.floor(Math.random() * opponents.length)];
     setOpponent(opp);
 
-    await new Promise(resolve => setTimeout(resolve, 2800));
-
+    // Calculate local result first
     const myPower = selectedAgent.power + Math.random() * 10;
     const oppPower = opp.power + Math.random() * 10;
+    const localWin = myPower > oppPower;
+    const localDraw = Math.abs(myPower - oppPower) < 0.5;
+
+    // Call on-chain battle if contract is available and both agents have tokenIds
+    let txHash: string | undefined;
+    if (contract && selectedAgent.tokenId && opp.tokenId) {
+      try {
+        const tx = await contract.battle(selectedAgent.tokenId, opp.tokenId);
+        const receipt = await tx.wait();
+        txHash = receipt.hash;
+        console.log(`Battle tx confirmed: ${txHash}`);
+      } catch (err: any) {
+        console.warn("On-chain battle failed, using local result:", err.message);
+      }
+    }
+
+    // Wait for animation
+    await new Promise(resolve => setTimeout(resolve, 2800));
 
     let result: { text: string; type: 'win' | 'lose' | 'draw' };
-    if (myPower > oppPower) {
+    if (localWin && !localDraw) {
       result = { text: `${selectedAgent.name} defeated ${opp.name}!`, type: 'win' };
-      // FIX: functional update to avoid stale closure
       setMintedAgents(prev => prev.map(a =>
         a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a
       ));
       setSelectedAgent(prev => prev ? { ...prev, wins: prev.wins + 1 } : null);
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3000);
-    } else if (myPower < oppPower) {
+    } else if (!localDraw) {
       result = { text: `${opp.name} overpowered ${selectedAgent.name}`, type: 'lose' };
     } else {
       result = { text: `Draw! Equal power`, type: 'draw' };
@@ -747,8 +783,9 @@ export default function RitualAgentArena() {
       attacker: selectedAgent.name,
       defender: opp.name,
       winner: result.type === 'win' ? selectedAgent.name : opp.name,
-      timestamp: Date.now()
-    }, ...prev].slice(0, 20));
+      timestamp: Date.now(),
+      txHash,
+    }, ...prev].slice(0, 50));
 
     setBattleResult(result);
     setIsBattleAnimating(false);
@@ -1189,6 +1226,18 @@ export default function RitualAgentArena() {
                   <div className="flex items-center gap-2 mb-1">
                     <Sword className="w-3 h-3" style={{ color: 'rgba(16,185,129,0.5)' }} />
                     <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.2)' }}>{timeAgo(log.timestamp)}</span>
+                    {log.txHash && (
+                      <a
+                        href={`${RITUAL_EXPLORER}/tx/${log.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-md transition-colors hover:opacity-80"
+                        style={{ color: '#34D399', background: 'rgba(16,185,129,0.08)' }}
+                        title={log.txHash}
+                      >
+                        ⛓️ {log.txHash.slice(0, 6)}...{log.txHash.slice(-4)}
+                      </a>
+                    )}
                   </div>
                   <div className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     <span className="font-medium" style={{ color: '#f0f2f0' }}>{log.attacker}</span>
@@ -1495,13 +1544,39 @@ export default function RitualAgentArena() {
                     {battleResult.type === 'win' ? 'VICTORY!' : battleResult.type === 'lose' ? 'DEFEATED' : 'DRAW'}
                   </motion.div>
                   <motion.div
-                    className="text-sm mb-6"
+                    className="text-sm mb-4"
                     style={{ color: 'rgba(255,255,255,0.4)' }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
                   >
                     {battleResult.text}
+                  </motion.div>
+
+                  {/* On-chain tx indicator */}
+                  <motion.div
+                    className="mb-6"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    {battleLogs[0]?.txHash ? (
+                      <a
+                        href={`${RITUAL_EXPLORER}/tx/${battleLogs[0].txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-mono transition-all hover:opacity-80"
+                        style={{ color: '#34D399', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}
+                      >
+                        <span className="text-sm">⛓️</span>
+                        Recorded on Ritual Testnet
+                        <span style={{ color: 'rgba(52,211,153,0.5)' }}>→</span>
+                      </a>
+                    ) : (
+                      <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.15)' }}>
+                        Off-chain battle (no wallet tx)
+                      </span>
+                    )}
                   </motion.div>
 
                   <div className="flex gap-3 justify-center">
