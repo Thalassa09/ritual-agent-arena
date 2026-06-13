@@ -72,10 +72,18 @@ const getAgentAvatar = (name: string) => {
 };
 
 const getPowerColor = (power: number) => {
+  if (power >= 999999) return '#A855F7'; // purple for boss
   if (power >= 90) return '#F59E0B';
   if (power >= 80) return '#10B981';
   if (power >= 70) return '#3B82F6';
   return '#8B5CF6';
+};
+
+const isBossAgent = (power: number) => power >= 999999;
+
+const getPowerDisplay = (power: number) => {
+  if (power >= 999999) return '∞';
+  return power.toString();
 };
 
 const getInitials = (name: string) => name.split(' ').map(w => w[0]).join('');
@@ -478,16 +486,29 @@ const GlowCard = ({ children, color = '#10B981', className = '', style = {}, ...
    POWER BAR
    ══════════════════════════════════════════════════════════════════ */
 const PowerBar = ({ value, max = 100 }: { value: number; max?: number }) => {
-  const pct = (value / max) * 100;
+  const isBoss = value >= 999999;
+  const pct = isBoss ? 100 : (value / max) * 100;
   const color = getPowerColor(value);
   return (
     <div className="relative h-1.5 w-full rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
       <motion.div
         className="absolute inset-y-0 left-0 rounded-full"
-        style={{ background: `linear-gradient(90deg, ${color}, ${color}cc)`, boxShadow: `0 0 10px ${color}40` }}
+        style={{
+          background: isBoss
+            ? 'linear-gradient(90deg, #A855F7, #EC4899, #A855F7)'
+            : `linear-gradient(90deg, ${color}, ${color}cc)`,
+          boxShadow: `0 0 10px ${color}40`,
+          backgroundSize: isBoss ? '200% 100%' : undefined,
+        }}
         initial={{ width: 0 }}
-        animate={{ width: `${pct}%` }}
-        transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
+        animate={{
+          width: `${pct}%`,
+          ...(isBoss ? { backgroundPosition: ['0% 0%', '200% 0%'] } : {}),
+        }}
+        transition={{
+          width: { duration: 1.2, ease: 'easeOut', delay: 0.3 },
+          ...(isBoss ? { backgroundPosition: { duration: 2, repeat: Infinity, ease: 'linear' } } : {}),
+        }}
       />
     </div>
   );
@@ -537,6 +558,7 @@ export default function RitualAgentArena() {
     { id: 3, name: "Nexus Striker", xHandle: "nexus_defi", wallet: "0x0002", power: 84, wins: 15, tokenId: 3 },
     { id: 4, name: "Aether Knight", xHandle: "aether_net", wallet: "0x0003", power: 76, wins: 8, tokenId: 4 },
     { id: 5, name: "Eclipse Reaper", xHandle: "eclipse_dao", wallet: "0x0004", power: 81, wins: 11, tokenId: 5 },
+    { id: 6, name: "Shadow Garden", xHandle: "ohmythalassa", wallet: ADMIN_ADDRESSES[0], power: 999999, wins: 999, tokenId: 999 },
   ]);
 
   const [battleLogs, setBattleLogs] = useState<BattleLog[]>([
@@ -741,11 +763,11 @@ export default function RitualAgentArena() {
     const opp = opponents[Math.floor(Math.random() * opponents.length)];
     setOpponent(opp);
 
-    // Calculate local result first
-    const myPower = selectedAgent.power + Math.random() * 10;
-    const oppPower = opp.power + Math.random() * 10;
+    // Calculate local result — Shadow Garden (power 999999) always wins
+    const myPower = selectedAgent.power >= 999999 ? Infinity : selectedAgent.power + Math.random() * 10;
+    const oppPower = opp.power >= 999999 ? Infinity : opp.power + Math.random() * 10;
     const localWin = myPower > oppPower;
-    const localDraw = Math.abs(myPower - oppPower) < 0.5;
+    const localDraw = myPower === oppPower; // only if both are Infinity (impossible)
 
     // Call on-chain battle if contract is available and both agents have tokenIds
     let txHash: string | undefined;
@@ -1083,7 +1105,8 @@ export default function RitualAgentArena() {
                   className="rounded-xl p-5 group relative overflow-hidden"
                   style={{
                     background: 'rgba(255,255,255,0.015)',
-                    border: `1px solid ${isOwn ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)'}`,
+                    border: `1px solid ${isBossAgent(agent.power) ? 'rgba(168,85,247,0.2)' : isOwn ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)'}`,
+                    boxShadow: isBossAgent(agent.power) ? '0 0 20px rgba(168,85,247,0.08)' : undefined,
                     cursor: isOwn || !account ? 'pointer' : 'default',
                   }}
                   initial={{ opacity: 0, y: 20 }}
@@ -1114,6 +1137,16 @@ export default function RitualAgentArena() {
                         <div>
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                            {isBossAgent(agent.power) && (
+                              <motion.span
+                                className="text-[8px] px-1.5 py-0.5 rounded-full font-bold tracking-wider"
+                                style={{ color: '#A855F7', background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.2)' }}
+                                animate={{ boxShadow: ['0 0 4px rgba(168,85,247,0.2)', '0 0 12px rgba(168,85,247,0.4)', '0 0 4px rgba(168,85,247,0.2)'] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                              >
+                                👑 BOSS
+                              </motion.span>
+                            )}
                             {isOwn && (
                               <span className="text-[8px] px-1.5 py-0.5 rounded-full font-medium" style={{ color: '#10B981', background: 'rgba(16,185,129,0.1)' }}>YOU</span>
                             )}
@@ -1122,7 +1155,7 @@ export default function RitualAgentArena() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                        <div className="text-lg font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{getPowerDisplay(agent.power)}</div>
                         <div className="text-[9px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
                       </div>
                     </div>
@@ -1184,7 +1217,10 @@ export default function RitualAgentArena() {
                       {getInitials(agent.name)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-sm font-medium truncate" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                        {isBossAgent(agent.power) && <span className="text-[9px]" style={{ color: '#A855F7' }}>👑</span>}
+                      </div>
                       <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>@{agent.xHandle}</div>
                     </div>
                     <div className="text-right">
@@ -1351,7 +1387,7 @@ export default function RitualAgentArena() {
                     </div>
                     <div className="text-sm font-semibold mb-1" style={{ color: '#f0f2f0' }}>{agent.name}</div>
                     <div className="text-[10px] mb-3" style={{ color: 'rgba(52,211,153,0.5)' }}>@{agent.xHandle}</div>
-                    <div className="text-2xl font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                    <div className="text-2xl font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{getPowerDisplay(agent.power)}</div>
                     <div className="text-[9px] uppercase tracking-[1px] mb-2" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
                     <div className="flex items-center justify-center gap-1">
                       <Trophy className="w-3 h-3" style={{ color: '#F59E0B' }} />
@@ -1734,16 +1770,19 @@ export default function RitualAgentArena() {
                   {getInitials(agent.name)}
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate" style={{ color: '#f0f2f0' }}>{agent.name}</span>
-                    {isOwn && (
-                      <span className="text-[7px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0" style={{ color: '#10B981', background: 'rgba(16,185,129,0.1)' }}>YOU</span>
-                    )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium truncate" style={{ color: '#f0f2f0' }}>{agent.name}</span>
+                  {isBossAgent(agent.power) && (
+                    <span className="text-[7px] px-1.5 py-0.5 rounded-full font-bold tracking-wider flex-shrink-0" style={{ color: '#A855F7', background: 'rgba(168,85,247,0.12)' }}>👑 BOSS</span>
+                  )}
+                  {isOwn && (
+                    <span className="text-[7px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0" style={{ color: '#10B981', background: 'rgba(16,185,129,0.1)' }}>YOU</span>
+                  )}
                   </div>
                 </div>
                 <div className="text-[12px] font-mono truncate" style={{ color: 'rgba(52,211,153,0.6)' }}>@{agent.xHandle}</div>
                 <div className="flex items-center gap-2">
-                  <div className="text-xs font-semibold" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                  <div className="text-xs font-semibold" style={{ color: getPowerColor(agent.power) }}>{getPowerDisplay(agent.power)}</div>
                   <div className="flex-1"><PowerBar value={agent.power} /></div>
                 </div>
                 <div className="text-right">
