@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import { Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle, ChevronRight, Activity, Flame, Crown, Shield, Sparkles, X } from 'lucide-react';
 import { ethers } from 'ethers';
 
 declare global {
@@ -29,138 +29,195 @@ interface MintedAgent {
   wins: number;
 }
 
-/* ─────────────── RITUAL GREEN CINEMATIC BACKGROUND ─────────────── */
-const AnimatedBackground = () => {
+interface BattleLog {
+  id: number;
+  attacker: string;
+  defender: string;
+  winner: string;
+  timestamp: number;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ANIMATED BACKGROUND — Luminance Stacking (Linear-inspired)
+   ══════════════════════════════════════════════════════════════════ */
+const NeuralBackground = () => (
+  <div className="fixed inset-0 z-[-1] overflow-hidden" style={{ background: '#030806' }}>
+    {/* Mesh gradient layer */}
+    <div className="absolute inset-0" style={{
+      background: `
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(16,185,129,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 80% 90%, rgba(20,184,166,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 50% at 50% 50%, rgba(132,204,22,0.03) 0%, transparent 70%)
+      `
+    }} />
+
+    {/* Subtle grid — Linear-style */}
+    <div className="absolute inset-0" style={{
+      backgroundImage: `
+        linear-gradient(rgba(16,185,129,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16,185,129,0.03) 1px, transparent 1px)
+      `,
+      backgroundSize: '80px 80px'
+    }} />
+
+    {/* Floating orbs — subtle, not spammy */}
+    {[
+      { size: 800, x: '10%', y: '-20%', color: 'rgba(16,185,129,0.06)', dur: 55 },
+      { size: 600, x: '70%', y: '60%', color: 'rgba(20,184,166,0.04)', dur: 65 },
+      { size: 500, x: '40%', y: '30%', color: 'rgba(132,204,22,0.03)', dur: 75 },
+    ].map((orb, i) => (
+      <motion.div
+        key={i}
+        className="absolute rounded-full"
+        style={{
+          width: orb.size,
+          height: orb.size,
+          left: orb.x,
+          top: orb.y,
+          background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
+          filter: 'blur(60px)',
+        }}
+        animate={{
+          x: [0, 80, -60, 0],
+          y: [0, -60, 40, 0],
+          scale: [1, 1.1, 0.95, 1],
+        }}
+        transition={{ duration: orb.dur, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    ))}
+
+    {/* Minimal particles — only 12, not 48 */}
+    {Array.from({ length: 12 }).map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute rounded-full"
+        style={{
+          width: i % 3 === 0 ? 3 : 2,
+          height: i % 3 === 0 ? 3 : 2,
+          left: `${(i * 8.3 + 5) % 100}%`,
+          top: `${(i * 7.1 + 3) % 100}%`,
+          backgroundColor: i % 4 === 0 ? '#84CC16' : i % 3 === 0 ? '#34D399' : '#10B981',
+        }}
+        animate={{
+          y: [0, -200, 0],
+          opacity: [0, 0.6, 0],
+          scale: [0.5, 1.5, 0.5],
+        }}
+        transition={{
+          duration: 16 + (i % 6) * 2,
+          repeat: Infinity,
+          delay: i * 1.2,
+          ease: 'easeInOut',
+        }}
+      />
+    ))}
+  </div>
+);
+
+/* ══════════════════════════════════════════════════════════════════
+   UTILS
+   ══════════════════════════════════════════════════════════════════ */
+const randomNames = ["Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift", "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium", "Obsidian", "Celestia", "Helix", "Orion", "Zenith", "Lunar", "Solstice"];
+const randomSuffixes = ["Oracle", "Weaver", "Striker", "Knight", "Reaper", "Warden", "Sage", "Hunter", "Lord", "Walker"];
+const generateRandomAgentName = () => {
+  return `${randomNames[Math.floor(Math.random() * randomNames.length)]} ${randomSuffixes[Math.floor(Math.random() * randomSuffixes.length)]}`;
+};
+
+const getAgentAvatar = (name: string) => {
+  const colors = ['#10B981', '#34D399', '#059669', '#84CC16', '#14B8A6', '#6EE7B7'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
+const getPowerColor = (power: number) => {
+  if (power >= 90) return '#F59E0B';
+  if (power >= 80) return '#10B981';
+  if (power >= 70) return '#3B82F6';
+  return '#8B5CF6';
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   POWER BAR COMPONENT
+   ══════════════════════════════════════════════════════════════════ */
+const PowerBar = ({ value, max = 100 }: { value: number; max?: number }) => {
+  const pct = (value / max) * 100;
+  const color = getPowerColor(value);
   return (
-    <div className="fixed inset-0 z-[-1] overflow-hidden bg-[#060D09]">
-      {/* Base micro-grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#0E1F16_0.6px,transparent_1px)] bg-[length:4px_4px] opacity-55" />
-
-      {/* ── Glowing Orbs (emerald + teal + lime) ── */}
+    <div className="relative h-1.5 w-full rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
       <motion.div
-        className="absolute -top-[52%] -left-[28%] w-[1650px] h-[1650px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 38% 32%, rgba(16,185,129,0.15) 0%, transparent 68%)' }}
-        animate={{ x: [0, 200, -100, 0], y: [0, 120, -80, 0], scale: [1, 1.16, 0.95, 1], rotate: [0, 7, -4, 0] }}
-        transition={{ duration: 60, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute inset-y-0 left-0 rounded-full"
+        style={{ background: `linear-gradient(90deg, ${color}, ${color}dd)`, boxShadow: `0 0 8px ${color}40` }}
+        initial={{ width: 0 }}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
       />
-      <motion.div
-        className="absolute -bottom-[46%] -right-[20%] w-[1450px] h-[1450px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 62% 62%, rgba(20,184,166,0.10) 0%, transparent 72%)' }}
-        animate={{ x: [0, -180, 95, 0], y: [0, -110, 65, 0], scale: [1, 1.13, 0.96, 1], rotate: [0, -6, 3, 0] }}
-        transition={{ duration: 66, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute top-[16%] left-[34%] w-[920px] h-[920px] rounded-full"
-        style={{ background: 'radial-gradient(circle at 48% 44%, rgba(132,204,22,0.05) 0%, transparent 76%)' }}
-        animate={{ x: [0, 80, -50, 0], y: [0, -60, 40, 0], scale: [1, 1.20, 0.92, 1] }}
-        transition={{ duration: 72, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      {/* ── Horizontal Light Beams (emerald) ── */}
-      {Array.from({ length: 11 }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute h-px bg-gradient-to-r from-transparent via-[#10B981] to-transparent"
-          style={{
-            left: `${3 + i * 9}%`,
-            top: `${8 + i * 8.5}%`,
-            width: `${400 + i * 45}px`,
-            opacity: 0.08 + (i % 3) * 0.05,
-          }}
-          animate={{ x: [0, 300, -120, 0], opacity: [0.06, 0.35, 0.06] }}
-          transition={{ duration: 30 + i * 3.2, repeat: Infinity, ease: "easeInOut" }}
-        />
-      ))}
-
-      {/* ── Floating Particles (emerald + lime mix) ── */}
-      {Array.from({ length: 48 }).map((_, i) => {
-        const colors = ['#10B981', '#34D399', '#6EE7B7', '#84CC16'];
-        const color = colors[i % colors.length];
-        return (
-          <motion.div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              backgroundColor: color,
-              left: `${(i * 5.2 + 3) % 100}%`,
-              top: `${(i * 7.8 + 4) % 100}%`,
-              width: i % 4 === 0 ? '3.5px' : i % 3 === 0 ? '2.5px' : '1.5px',
-              height: i % 4 === 0 ? '3.5px' : i % 3 === 0 ? '2.5px' : '1.5px',
-            }}
-            animate={{
-              y: [0, -300, 0],
-              x: [0, (i % 5 === 0 ? 70 : -52), 0],
-              opacity: [0, 0.80, 0],
-              scale: [0.35, 2.2, 0.35],
-            }}
-            transition={{ duration: 18 + (i % 8) * 1.7, repeat: Infinity, delay: i * 0.19, ease: "easeInOut" }}
-          />
-        );
-      })}
-
-      {/* ── Vertical Light Lines ── */}
-      {Array.from({ length: 13 }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute w-px"
-          style={{
-            left: `${7 + i * 7.2}%`,
-            top: `${5 + (i % 4) * 10}%`,
-            height: `${200 + (i % 5) * 50}px`,
-            background: i % 3 === 0 ? '#10B981' : '#ffffff',
-            opacity: 0.06 + (i % 4) * 0.03,
-          }}
-          animate={{ y: [0, 150, 0], opacity: [0.04, 0.22, 0.04] }}
-          transition={{ duration: 23 + (i % 6) * 2.3, repeat: Infinity, ease: "easeInOut" }}
-        />
-      ))}
-
-      {/* Depth grids */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0B1A13_1px,transparent_1px)] bg-[length:175px_175px] opacity-32" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#0B1A13_1px,transparent_1px)] bg-[length:175px_175px] opacity-32" />
     </div>
   );
 };
 
-/* ─────────────── UTILS ─────────────── */
-const randomNames = ["Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift", "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium", "Obsidian", "Celestia", "Helix", "Orion", "Zenith", "Lunar", "Solstice"];
-const randomSuffixes = ["Oracle", "Weaver", "Striker", "Knight", "Reaper", "Warden", "Sage", "Hunter", "Lord", "Walker"];
-
-const generateRandomAgentName = () => {
-  const name = randomNames[Math.floor(Math.random() * randomNames.length)];
-  const suffix = randomSuffixes[Math.floor(Math.random() * randomSuffixes.length)];
-  return `${name} ${suffix}`;
+/* ══════════════════════════════════════════════════════════════════
+   ANIMATED COUNTER
+   ══════════════════════════════════════════════════════════════════ */
+const AnimatedCounter = ({ value, duration = 1.5 }: { value: number; duration?: number }) => {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const end = value;
+    if (start === end) return;
+    const increment = end / (duration * 60);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= end) { setDisplay(end); clearInterval(timer); }
+      else setDisplay(Math.floor(start));
+    }, 1000 / 60);
+    return () => clearInterval(timer);
+  }, [value, duration]);
+  return <>{display}</>;
 };
 
-/* ─────────────── MAIN COMPONENT ─────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ══════════════════════════════════════════════════════════════════ */
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
+  const [activeView, setActiveView] = useState<'dashboard' | 'arena'>('dashboard');
 
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
-    { id: 1, name: "Shadow Oracle", xHandle: "", wallet: "0x000", power: 83, wins: 12 },
-    { id: 2, name: "Void Weaver", xHandle: "", wallet: "0x000", power: 79, wins: 9 },
-    { id: 3, name: "Nexus Striker", xHandle: "", wallet: "0x000", power: 84, wins: 15 },
-    { id: 4, name: "Aether Knight", xHandle: "", wallet: "0x000", power: 76, wins: 8 },
-    { id: 5, name: "Eclipse Reaper", xHandle: "", wallet: "0x000", power: 81, wins: 11 },
+    { id: 1, name: "Shadow Oracle", xHandle: "shadow_ai", wallet: "0x000", power: 83, wins: 12 },
+    { id: 2, name: "Void Weaver", xHandle: "void_ops", wallet: "0x001", power: 79, wins: 9 },
+    { id: 3, name: "Nexus Striker", xHandle: "nexus_defi", wallet: "0x002", power: 84, wins: 15 },
+    { id: 4, name: "Aether Knight", xHandle: "aether_net", wallet: "0x003", power: 76, wins: 8 },
+    { id: 5, name: "Eclipse Reaper", xHandle: "eclipse_dao", wallet: "0x004", power: 81, wins: 11 },
   ]);
 
-  // Persistence with localStorage
+  const [battleLogs, setBattleLogs] = useState<BattleLog[]>([
+    { id: 1, attacker: "Nexus Striker", defender: "Shadow Oracle", winner: "Nexus Striker", timestamp: Date.now() - 120000 },
+    { id: 2, attacker: "Eclipse Reaper", defender: "Void Weaver", winner: "Eclipse Reaper", timestamp: Date.now() - 300000 },
+    { id: 3, attacker: "Shadow Oracle", defender: "Aether Knight", winner: "Shadow Oracle", timestamp: Date.now() - 480000 },
+  ]);
+
   useEffect(() => {
     const saved = localStorage.getItem("ritual_agents");
-    if (saved) { try { setMintedAgents(JSON.parse(saved)); } catch(e) {} }
+    if (saved) { try { setMintedAgents(JSON.parse(saved)); } catch (e) { } }
+    const savedLogs = localStorage.getItem("ritual_battle_logs");
+    if (savedLogs) { try { setBattleLogs(JSON.parse(savedLogs)); } catch (e) { } }
   }, []);
 
   useEffect(() => {
-    if (mintedAgents.length > 0) {
-      localStorage.setItem("ritual_agents", JSON.stringify(mintedAgents));
-    }
+    if (mintedAgents.length > 0) localStorage.setItem("ritual_agents", JSON.stringify(mintedAgents));
   }, [mintedAgents]);
 
-  const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  useEffect(() => {
+    if (battleLogs.length > 0) localStorage.setItem("ritual_battle_logs", JSON.stringify(battleLogs));
+  }, [battleLogs]);
+
+  const [selectedAgent, setSelectedAgent] = useState<MintedAgent | null>(null);
   const [isBattling, setIsBattling] = useState(false);
   const [isBattleAnimating, setIsBattleAnimating] = useState(false);
-  const [battleResult, setBattleResult] = useState<string>('');
+  const [battleResult, setBattleResult] = useState<{ text: string; type: 'win' | 'lose' | 'draw' } | null>(null);
+  const [opponent, setOpponent] = useState<MintedAgent | null>(null);
 
   const [showMintModal, setShowMintModal] = useState(false);
   const [mintName, setMintName] = useState('');
@@ -181,10 +238,7 @@ export default function RitualAgentArena() {
     setContract(ritualContract);
   };
 
-  const disconnectWallet = () => {
-    setAccount('');
-    setContract(null);
-  };
+  const disconnectWallet = () => { setAccount(''); setContract(null); };
 
   const switchToRitual = async () => {
     try {
@@ -209,436 +263,732 @@ export default function RitualAgentArena() {
 
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
-
     const isAdminByAddress = ADMIN_ADDRESSES.includes(account.toLowerCase());
     const isAdminByX = mintedAgents.some(a =>
       ADMIN_X_HANDLES.includes(a.xHandle.toLowerCase()) && a.wallet.toLowerCase() === account.toLowerCase()
     );
-
     if (!isAdminByAddress && !isAdminByX) {
       const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
-      if (alreadyMinted) {
-        alert("This wallet has already minted an agent. 1 wallet = 1 agent.");
-        return;
-      }
+      if (alreadyMinted) { alert("This wallet has already minted an agent. 1 wallet = 1 agent."); return; }
     }
-
     setShowMintModal(true);
-    setMintName('');
-    setMintX('');
-    setErrorMsg('');
-  };
-
-  const closeMintModal = () => {
-    setShowMintModal(false);
-    setErrorMsg('');
-  };
-
-  const generateRandomName = () => {
-    const randomName = generateRandomAgentName();
-    setMintName(randomName);
-    setErrorMsg('');
+    setMintName(''); setMintX(''); setErrorMsg('');
   };
 
   const mintNewAgent = async () => {
     if (!contract || !mintName.trim() || !mintX.trim()) return;
-
     const nameLower = mintName.trim().toLowerCase();
     const xLower = mintX.trim().toLowerCase();
-
-    if (mintedAgents.find(a => a.name.toLowerCase() === nameLower)) {
-      setErrorMsg("Agent name already taken");
-      return;
-    }
-    if (mintedAgents.find(a => a.xHandle.toLowerCase() === xLower)) {
-      setErrorMsg("X handle already taken");
-      return;
-    }
-
+    if (mintedAgents.find(a => a.name.toLowerCase() === nameLower)) { setErrorMsg("Agent name already taken"); return; }
+    if (mintedAgents.find(a => a.xHandle.toLowerCase() === xLower)) { setErrorMsg("X handle already taken"); return; }
     try {
       const displayName = `${mintName.trim()} (@${mintX.trim()})`;
       const tx = await contract.mintAgent(displayName);
       await tx.wait();
-
       const power = Math.floor(Math.random() * 16) + 80;
-
-      const newAgent: MintedAgent = {
-        id: mintedAgents.length + 1,
-        name: mintName.trim(),
-        xHandle: mintX.trim(),
-        wallet: account,
-        power,
-        wins: 0,
-      };
+      const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: mintName.trim(), xHandle: mintX.trim(), wallet: account, power, wins: 0 };
       setMintedAgents([...mintedAgents, newAgent]);
-
       alert("Agent minted successfully!");
-      closeMintModal();
-    } catch (err) {
-      console.error(err);
-      alert("Mint failed");
-    }
+      setShowMintModal(false);
+    } catch (err) { console.error(err); alert("Mint failed"); }
   };
 
   const enterArena = (agent: MintedAgent) => {
     setSelectedAgent(agent);
-    setBattleResult('');
+    setBattleResult(null);
+    setOpponent(null);
     setIsBattling(false);
+    setActiveView('arena');
   };
 
   const startBattle = async () => {
-    if (!selectedAgent || !contract) return;
-
+    if (!selectedAgent) return;
     setIsBattling(true);
     setIsBattleAnimating(true);
-    setBattleResult('');
+    setBattleResult(null);
 
-    await new Promise(resolve => setTimeout(resolve, 2200));
-
-    try {
-      const opponents = mintedAgents.filter(a => a.id !== selectedAgent.id);
-      if (opponents.length === 0) {
-        setBattleResult("No other agents to battle");
-        setIsBattling(false);
-        setIsBattleAnimating(false);
-        return;
-      }
-
-      const opponent = opponents[Math.floor(Math.random() * opponents.length)];
-      const myPower = selectedAgent.power;
-      const oppPower = opponent.power;
-
-      let resultText = "";
-
-      if (myPower > oppPower) {
-        resultText = `⚡ Victory! ${selectedAgent.name} defeated ${opponent.name} (${myPower} vs ${oppPower})`;
-        const updated = mintedAgents.map(a =>
-          a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a
-        );
-        setMintedAgents(updated);
-      } else if (myPower < oppPower) {
-        resultText = `💀 Defeat. ${opponent.name} overpowered ${selectedAgent.name} (${oppPower} vs ${myPower})`;
-      } else {
-        resultText = `🤝 Draw! Both agents have equal power (${myPower})`;
-      }
-
-      setBattleResult(resultText);
-    } catch (err) {
-      console.error(err);
-      setBattleResult("Battle failed on-chain");
+    const opponents = mintedAgents.filter(a => a.id !== selectedAgent.id);
+    if (opponents.length === 0) {
+      setBattleResult({ text: "No opponents available", type: 'draw' });
+      setIsBattling(false); setIsBattleAnimating(false);
+      return;
     }
 
-    setIsBattleAnimating(false);
-    setIsBattling(false);
-  };
+    const opp = opponents[Math.floor(Math.random() * opponents.length)];
+    setOpponent(opp);
 
-  const closeBattle = () => {
-    setSelectedAgent(null);
-    setBattleResult('');
-    setIsBattling(false);
+    await new Promise(resolve => setTimeout(resolve, 2800));
+
+    const myPower = selectedAgent.power + Math.random() * 10;
+    const oppPower = opp.power + Math.random() * 10;
+
+    let result: { text: string; type: 'win' | 'lose' | 'draw' };
+    if (myPower > oppPower) {
+      result = { text: `${selectedAgent.name} defeated ${opp.name}!`, type: 'win' };
+      setMintedAgents(mintedAgents.map(a => a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a));
+    } else if (myPower < oppPower) {
+      result = { text: `${opp.name} overpowered ${selectedAgent.name}`, type: 'lose' };
+    } else {
+      result = { text: `Draw! Equal power`, type: 'draw' };
+    }
+
+    setBattleLogs(prev => [{
+      id: prev.length + 1,
+      attacker: selectedAgent.name,
+      defender: opp.name,
+      winner: result.type === 'win' ? selectedAgent.name : opp.name,
+      timestamp: Date.now()
+    }, ...prev].slice(0, 20));
+
+    setBattleResult(result);
     setIsBattleAnimating(false);
+    setIsBattling(false);
   };
 
   const totalAgents = mintedAgents.length;
-  const totalBattles = 0;
-  const avgRating = totalAgents > 0 ? 1700 : 0;
+  const totalWins = mintedAgents.reduce((sum, a) => sum + a.wins, 0);
+  const avgPower = totalAgents > 0 ? Math.round(mintedAgents.reduce((sum, a) => sum + a.power, 0) / totalAgents) : 0;
   const leaderboard = [...mintedAgents].sort((a, b) => b.wins - a.wins).slice(0, 5);
 
-  return (
-    <div className="min-h-screen text-white relative">
-      <AnimatedBackground />
+  const timeAgo = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    return `${Math.floor(diff / 3600000)}h ago`;
+  };
 
-      {/* ─────── NAVBAR ─────── */}
-      <div className="border-b border-[#10B981]/10 bg-[#060D09]/80 backdrop-blur-2xl sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-8 py-7 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <motion.div
-              className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#10B981] via-[#059669] to-[#047857] flex items-center justify-center shadow-lg shadow-[#10B981]/20"
-              animate={{ boxShadow: ['0 0 15px rgba(16,185,129,0.2)', '0 0 30px rgba(16,185,129,0.35)', '0 0 15px rgba(16,185,129,0.2)'] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+  /* ─────────────── NAVBAR ─────────────── */
+  const Navbar = () => (
+    <motion.nav
+      className="sticky top-0 z-50"
+      style={{
+        background: 'rgba(3,8,6,0.7)',
+        backdropFilter: 'blur(24px) saturate(1.2)',
+        borderBottom: '1px solid rgba(16,185,129,0.06)',
+      }}
+      initial={{ y: -80 }}
+      animate={{ y: 0 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 30 }}
+    >
+      <div className="max-w-[1440px] mx-auto px-6 h-14 flex items-center justify-between">
+        {/* Left — Logo */}
+        <div className="flex items-center gap-3">
+          <motion.div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              boxShadow: '0 0 20px rgba(16,185,129,0.2)',
+            }}
+            animate={{ boxShadow: ['0 0 12px rgba(16,185,129,0.15)', '0 0 24px rgba(16,185,129,0.3)', '0 0 12px rgba(16,185,129,0.15)'] }}
+            transition={{ duration: 3, repeat: Infinity }}
+          >
+            <Sword className="w-4 h-4 text-black" />
+          </motion.div>
+          <div>
+            <span className="text-[15px] font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>Ritual</span>
+            <span className="text-[10px] font-medium ml-1.5 tracking-[2px]" style={{ color: 'rgba(16,185,129,0.5)' }}>ARENA</span>
+          </div>
+        </div>
+
+        {/* Center — Nav tabs */}
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+          {[
+            { id: 'dashboard' as const, label: 'Dashboard', icon: Activity },
+            { id: 'arena' as const, label: 'Arena', icon: Sword },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveView(tab.id)}
+              className="relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                color: activeView === tab.id ? '#f0f2f0' : 'rgba(255,255,255,0.35)',
+                background: activeView === tab.id ? 'rgba(16,185,129,0.1)' : 'transparent',
+              }}
             >
-              <Sword className="w-5 h-5 text-black" />
-            </motion.div>
-            <div>
-              <div className="font-semibold tracking-[-1px] text-2xl">Ritual</div>
-              <div className="text-[10px] text-[#10B981]/60 -mt-1 tracking-[3px]">AGENT ARENA</div>
+              <tab.icon className="w-3.5 h-3.5" />
+              {tab.label}
+              {activeView === tab.id && (
+                <motion.div
+                  className="absolute inset-0 rounded-lg"
+                  style={{ border: '1px solid rgba(16,185,129,0.15)' }}
+                  layoutId="activeTab"
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Right — Wallet */}
+        <div className="flex items-center gap-3">
+          {account ? (
+            <>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono" style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                {account.slice(0, 6)}...{account.slice(-4)}
+              </div>
+              <button onClick={disconnectWallet} className="p-2 rounded-lg transition-colors" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </>
+          ) : (
+            <motion.button
+              onClick={connectWallet}
+              className="flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold text-black"
+              style={{ background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 0 20px rgba(16,185,129,0.2)' }}
+              whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(16,185,129,0.35)' }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Connect <ArrowRight className="w-3 h-3" />
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </motion.nav>
+  );
+
+  /* ─────────────── DASHBOARD VIEW ─────────────── */
+  const DashboardView = () => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="max-w-[1440px] mx-auto px-6 py-8"
+    >
+      {/* Hero — compact, Linear-style */}
+      <motion.div
+        className="text-center mb-12 pt-8"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <motion.div
+          className="inline-flex items-center gap-2 px-4 py-1 rounded-full text-[10px] font-medium tracking-[3px] mb-6"
+          style={{ color: '#34D399', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.1)' }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          RITUAL TESTNET · CHAIN 1979
+        </motion.div>
+
+        <motion.h1
+          className="text-[72px] leading-[0.95] font-semibold tracking-[-3px] mb-4"
+          style={{ color: '#f0f2f0' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.8 }}
+        >
+          Where Agents
+          <br />
+          <span style={{
+            background: 'linear-gradient(135deg, #10B981, #34D399, #84CC16)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}>
+            Prove Their Worth
+          </span>
+        </motion.h1>
+
+        <motion.p
+          className="text-lg max-w-md mx-auto"
+          style={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '-0.3px' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          Mint. Battle. Ascend. On-chain combat on Ritual.
+        </motion.p>
+      </motion.div>
+
+      {/* Stats Row — Linear-style, ultra-compact */}
+      <motion.div
+        className="grid grid-cols-4 gap-3 mb-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        {[
+          { icon: Users, label: 'Agents', value: totalAgents, color: '#10B981' },
+          { icon: Flame, label: 'Total Wins', value: totalWins, color: '#F59E0B' },
+          { icon: Zap, label: 'Avg Power', value: avgPower, color: '#3B82F6' },
+          { icon: Activity, label: 'Battles', value: battleLogs.length, color: '#8B5CF6' },
+        ].map((stat, i) => (
+          <motion.div
+            key={i}
+            className="rounded-xl p-5 group cursor-default"
+            style={{
+              background: 'rgba(255,255,255,0.015)',
+              border: '1px solid rgba(255,255,255,0.04)',
+            }}
+            whileHover={{
+              background: 'rgba(255,255,255,0.03)',
+              borderColor: `${stat.color}20`,
+              y: -2,
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <stat.icon className="w-3.5 h-3.5" style={{ color: stat.color }} />
+              <span className="text-[10px] font-medium tracking-[2px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                {stat.label}
+              </span>
             </div>
+            <div className="text-4xl font-semibold tracking-[-2px]" style={{ color: '#f0f2f0' }}>
+              <AnimatedCounter value={stat.value} />
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Main Grid: Agents + Activity */}
+      <div className="grid grid-cols-[1fr_320px] gap-4">
+        {/* Left — Agent Roster */}
+        <div>
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>Agent Roster</h2>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ color: 'rgba(16,185,129,0.7)', background: 'rgba(16,185,129,0.08)' }}>
+                {totalAgents}
+              </span>
+            </div>
+            <motion.button
+              onClick={openMintModal}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-black"
+              style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Plus className="w-3 h-3" /> Mint Agent
+            </motion.button>
           </div>
 
-          <div className="flex items-center gap-4">
-            {account ? (
-              <div className="flex items-center gap-3">
-                <div className="px-5 py-2.5 rounded-full bg-[#10B981]/5 text-sm font-mono border border-[#10B981]/15">
-                  {account.slice(0,6)}...{account.slice(-4)}
+          {/* Agent Cards — Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {mintedAgents.map((agent, i) => (
+              <motion.div
+                key={agent.id}
+                className="rounded-xl p-5 cursor-pointer group relative overflow-hidden"
+                style={{
+                  background: 'rgba(255,255,255,0.015)',
+                  border: '1px solid rgba(255,255,255,0.04)',
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * i }}
+                whileHover={{
+                  borderColor: 'rgba(16,185,129,0.15)',
+                  y: -3,
+                }}
+                onClick={() => enterArena(agent)}
+              >
+                {/* Hover glow */}
+                <motion.div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{ background: 'radial-gradient(circle at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 70%)' }}
+                />
+
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-black"
+                        style={{ background: getAgentAvatar(agent.name) }}
+                      >
+                        {agent.name.split(' ').map(w => w[0]).join('')}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                        <div className="text-[11px]" style={{ color: 'rgba(52,211,153,0.6)' }}>@{agent.xHandle}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                      <div className="text-[9px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
+                    </div>
+                  </div>
+
+                  <PowerBar value={agent.power} />
+
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center gap-1.5">
+                      <Trophy className="w-3 h-3" style={{ color: '#F59E0B' }} />
+                      <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{agent.wins} wins</span>
+                    </div>
+                    <motion.div
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ color: '#10B981', background: 'rgba(16,185,129,0.08)' }}
+                    >
+                      Battle <ChevronRight className="w-3 h-3" />
+                    </motion.div>
+                  </div>
                 </div>
-                <button onClick={disconnectWallet} className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/20 hover:bg-[#10B981]/10 transition-all active:scale-[0.985]">
-                  <LogOut className="w-4 h-4" /> Disconnect
-                </button>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Top Agents Leaderboard */}
+          {leaderboard.length > 0 && (
+            <motion.div
+              className="mt-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <div className="flex items-center gap-2 mb-4 px-1">
+                <Crown className="w-4 h-4" style={{ color: '#F59E0B' }} />
+                <h2 className="text-lg font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>Leaderboard</h2>
+              </div>
+              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                {leaderboard.map((agent, i) => (
+                  <motion.div
+                    key={agent.id}
+                    className="flex items-center gap-4 px-5 py-3.5 group cursor-pointer"
+                    style={{ borderBottom: i < leaderboard.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}
+                    whileHover={{ background: 'rgba(255,255,255,0.02)' }}
+                    onClick={() => enterArena(agent)}
+                  >
+                    <div className="w-6 text-center">
+                      {i === 0 ? <span className="text-sm">👑</span> : (
+                        <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.25)' }}>{i + 1}</span>
+                      )}
+                    </div>
+                    <div
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-black"
+                      style={{ background: getAgentAvatar(agent.name) }}
+                    >
+                      {agent.name.split(' ').map(w => w[0]).join('')}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                      <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>@{agent.xHandle}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{agent.wins}</div>
+                      <div className="text-[9px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.2)' }}>wins</div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Right — Activity Feed */}
+        <div>
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <Activity className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.3)' }} />
+            <h2 className="text-sm font-medium tracking-tight" style={{ color: 'rgba(255,255,255,0.5)' }}>Battle Feed</h2>
+          </div>
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
+          >
+            {battleLogs.length === 0 ? (
+              <div className="p-8 text-center">
+                <Shield className="w-8 h-8 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.1)' }} />
+                <div className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>No battles yet</div>
               </div>
             ) : (
-              <button onClick={connectWallet} className="flex items-center gap-3 px-8 py-3 rounded-full bg-[#10B981] text-black font-bold hover:bg-[#34D399] active:scale-[0.985] transition-all text-sm tracking-wide shadow-lg shadow-[#10B981]/25">
-                CONNECT WALLET <ArrowRight className="w-4 h-4" />
-              </button>
+              battleLogs.slice(0, 10).map((log, i) => (
+                <motion.div
+                  key={log.id}
+                  className="px-4 py-3"
+                  style={{ borderBottom: i < Math.min(battleLogs.length, 10) - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sword className="w-3 h-3" style={{ color: 'rgba(16,185,129,0.5)' }} />
+                    <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.2)' }}>{timeAgo(log.timestamp)}</span>
+                  </div>
+                  <div className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <span className="font-medium" style={{ color: '#f0f2f0' }}>{log.attacker}</span>
+                    {' vs '}
+                    <span className="font-medium" style={{ color: '#f0f2f0' }}>{log.defender}</span>
+                  </div>
+                  <div className="text-[10px] mt-1" style={{ color: log.winner === log.attacker ? '#10B981' : '#F59E0B' }}>
+                    {log.winner} won
+                  </div>
+                </motion.div>
+              ))
             )}
           </div>
         </div>
       </div>
+    </motion.div>
+  );
 
-      {/* ─────── HERO ─────── */}
-      <div className="max-w-7xl mx-auto px-8 pt-20 pb-24">
-        <div className="text-center mb-24">
-          <motion.div
-            className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full border border-[#10B981]/15 bg-[#10B981]/5 text-xs tracking-[4px] text-[#34D399] mb-8"
-            animate={{ borderColor: ['rgba(16,185,129,0.15)', 'rgba(16,185,129,0.3)', 'rgba(16,185,129,0.15)'] }}
-            transition={{ duration: 4, repeat: Infinity }}
-          >
-            RITUAL TESTNET • CHAIN 1979
-          </motion.div>
-
-          <h1 className="text-[92px] leading-[82px] font-semibold tracking-[-6.5px] mb-6">
-            Where Agents<br />
-            <span className="bg-gradient-to-r from-[#10B981] via-[#34D399] to-[#84CC16] bg-clip-text text-transparent">Prove Their Worth</span>
-          </h1>
-
-          {/* Accent line */}
-          <motion.div
-            className="mx-auto w-24 h-[2px] rounded-full bg-gradient-to-r from-transparent via-[#10B981] to-transparent mb-6"
-            animate={{ width: [80, 120, 80], opacity: [0.4, 0.8, 0.4] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          />
-
-          <p className="text-2xl text-white/50 max-w-lg mx-auto tracking-[-0.5px]">
-            ⚡ Mint. Battle. Ascend.<br />On-chain combat on Ritual.
-          </p>
-        </div>
-
-        {/* ─────── STATS ─────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-20">
-          {[
-            { icon: Users, label: "Active Agents", value: totalAgents },
-            { icon: Trophy, label: "Battles Fought", value: totalBattles },
-            { icon: Zap, label: "Avg Rating", value: avgRating || "—" },
-          ].map((stat, i) => (
-            <div key={i} className="border border-[#10B981]/10 rounded-3xl p-10 bg-[#10B981]/[0.02] hover:bg-[#10B981]/[0.05] hover:border-[#10B981]/25 transition-all group hover:shadow-[0_0_40px_rgba(16,185,129,0.06)]">
-              <stat.icon className="w-5 h-5 text-[#10B981] mb-9 group-hover:scale-110 transition-transform" />
-              <div className="text-7xl font-semibold tracking-[-4px] mb-1">{stat.value}</div>
-              <div className="text-white/40 text-sm tracking-wider">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* ─────── TOP AGENTS ─────── */}
-        {leaderboard.length > 0 && (
-          <div className="mb-20">
-            <div className="flex items-center gap-4 mb-8 px-2">
-              <Trophy className="w-6 h-6 text-[#10B981]" />
-              <div className="text-5xl font-semibold tracking-[-2.5px]">Top Agents</div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {leaderboard.map((agent, index) => (
-                <motion.div
-                  key={index}
-                  className={`rounded-3xl p-8 transition-all ${
-                    index === 0
-                      ? 'border-2 border-[#10B981]/40 bg-gradient-to-b from-[#10B981]/[0.06] to-transparent shadow-[0_0_30px_rgba(16,185,129,0.08)]'
-                      : 'border border-white/10 bg-white/[0.015] hover:border-[#10B981]/30'
-                  }`}
-                  whileHover={{ y: -4 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+  /* ─────────────── ARENA VIEW ─────────────── */
+  const ArenaView = () => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="max-w-[1440px] mx-auto px-6 py-8"
+    >
+      {!selectedAgent ? (
+        /* Agent Selection */
+        <div>
+          <div className="text-center mb-10 pt-8">
+            <h2 className="text-4xl font-semibold tracking-[-1.5px] mb-2" style={{ color: '#f0f2f0' }}>Choose Your Fighter</h2>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Select an agent to enter the arena</p>
+          </div>
+          <div className="grid grid-cols-3 gap-4 max-w-3xl mx-auto">
+            {mintedAgents.map((agent, i) => (
+              <motion.div
+                key={agent.id}
+                className="rounded-xl p-6 cursor-pointer text-center"
+                style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.08 }}
+                whileHover={{ borderColor: 'rgba(16,185,129,0.2)', y: -4, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => enterArena(agent)}
+              >
+                <div
+                  className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-black mx-auto mb-3"
+                  style={{ background: getAgentAvatar(agent.name) }}
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs text-white/40 tracking-widest">#{index + 1}</span>
-                    {index === 0 && <span className="text-xs">👑</span>}
-                  </div>
-                  <div className="font-semibold text-2xl tracking-[-1px] mb-1 leading-tight">{agent.name}</div>
-                  <div className="text-[#34D399] text-sm mb-6">@{agent.xHandle}</div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-white/50 text-sm">Wins</span>
-                    <span className="font-semibold text-5xl tracking-[-2px]">{agent.wins}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  {agent.name.split(' ').map(w => w[0]).join('')}
+                </div>
+                <div className="text-sm font-semibold mb-1" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                <div className="text-[10px] mb-3" style={{ color: 'rgba(52,211,153,0.5)' }}>@{agent.xHandle}</div>
+                <div className="text-2xl font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                <div className="text-[9px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
+              </motion.div>
+            ))}
           </div>
-        )}
-
-        {/* ─────── MINTED AGENTS TABLE ─────── */}
-        {mintedAgents.length > 0 && (
-          <div className="mb-20">
-            <div className="flex items-center justify-between mb-8 px-2">
-              <div className="text-5xl font-semibold tracking-[-2.5px]">Minted Agents</div>
-            </div>
-            <div className="border border-[#10B981]/10 rounded-3xl overflow-hidden bg-[#10B981]/[0.015]">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#10B981]/10 bg-[#10B981]/[0.03]">
-                    <th className="text-left px-8 py-6 text-xs tracking-[2.5px] text-white/40 font-normal">#</th>
-                    <th className="text-left px-8 py-6 text-xs tracking-[2.5px] text-white/40 font-normal">AGENT</th>
-                    <th className="text-left px-8 py-6 text-xs tracking-[2.5px] text-white/40 font-normal">X HANDLE</th>
-                    <th className="text-center px-8 py-6 text-xs tracking-[2.5px] text-white/40 font-normal">POWER</th>
-                    <th className="text-center px-8 py-6 text-xs tracking-[2.5px] text-white/40 font-normal">WINS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mintedAgents.map((agent, index) => (
-                    <tr
-                      key={index}
-                      className="border-b border-[#10B981]/5 last:border-0 hover:bg-[#10B981]/[0.04] transition-all cursor-pointer"
-                      onClick={() => enterArena(agent)}
-                    >
-                      <td className="px-8 py-7 text-white/30 font-mono text-sm">{agent.id}</td>
-                      <td className="px-8 py-6 font-medium text-lg tracking-[-0.5px]">{agent.name}</td>
-                      <td className="px-8 py-6 text-[#34D399]">@{agent.xHandle}</td>
-                      <td className="px-8 py-6 text-center">
-                        <span className="inline-flex items-center gap-1 font-mono text-lg">
-                          {agent.power}
-                          <span className="text-xs text-[#10B981]">⚡</span>
-                        </span>
-                      </td>
-                      <td className="px-8 py-6 text-center font-semibold text-xl tracking-tight">{agent.wins}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ─────── AGENT ROSTER ─────── */}
-        <div className="flex items-center justify-between mb-8 px-2">
-          <div>
-            <div className="text-5xl font-semibold tracking-[-2.5px]">Agent Roster</div>
-            <div className="text-white/40 mt-1">Choose your champion 🎯</div>
-          </div>
-          <button onClick={openMintModal} className="flex items-center gap-3 px-8 py-3.5 rounded-full border border-[#10B981]/25 hover:bg-[#10B981]/10 hover:border-[#10B981]/40 active:scale-[0.985] transition-all text-sm tracking-wider text-[#34D399]">
-            <Plus className="w-4 h-4" /> MINT NEW AGENT
-          </button>
         </div>
+      ) : (
+        /* Battle Arena */
+        <div className="max-w-2xl mx-auto">
+          {/* Back button */}
+          <button
+            onClick={() => { setSelectedAgent(null); setBattleResult(null); setOpponent(null); }}
+            className="flex items-center gap-2 text-xs font-medium mb-8 transition-colors"
+            style={{ color: 'rgba(255,255,255,0.3)' }}
+          >
+            ← Back to selection
+          </button>
 
-        {mintedAgents.length === 0 && (
-          <div className="border border-[#10B981]/10 rounded-3xl p-20 text-center bg-[#10B981]/[0.02]">
-            <div className="mx-auto w-20 h-20 rounded-3xl bg-[#10B981]/5 flex items-center justify-center mb-8">
-              <Users className="w-9 h-9 text-[#10B981]/50" />
-            </div>
-            <div className="text-4xl font-semibold tracking-[-1.5px] mb-3">No agents yet</div>
-            <div className="text-white/40 text-lg mb-10">Be the first to mint an agent on Ritual 🚀</div>
-            <button onClick={openMintModal} className="px-10 py-4 rounded-full bg-[#10B981] text-black font-bold hover:bg-[#34D399] active:scale-[0.985] transition-all text-sm tracking-wider shadow-lg shadow-[#10B981]/25">
-              MINT YOUR FIRST AGENT
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ─────── BATTLE MODAL ─────── */}
-      <AnimatePresence>
-        {selectedAgent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
-            <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 30, scale: 0.98 }}
-              transition={{ type: "spring", damping: 28, stiffness: 260 }}
-              className="w-full max-w-lg border border-[#10B981]/15 rounded-3xl bg-[#070C0A] p-12 relative"
-            >
-              <button onClick={closeBattle} className="absolute top-8 right-8 text-white/30 hover:text-white text-xl transition-colors">×</button>
-
-              <div className="text-center">
-                <div className="text-xs tracking-[4px] text-[#10B981]/60 mb-3">⚡ ARENA MODE</div>
-                <div className="text-7xl font-semibold tracking-[-4px] mb-3">{selectedAgent.name}</div>
-                <div className="text-[#10B981] text-xl mb-12 font-medium">Power {selectedAgent.power}</div>
+          {/* Battle Card */}
+          <motion.div
+            className="rounded-2xl overflow-hidden relative"
+            style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(16,185,129,0.08)',
+            }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+          >
+            {/* Battle Header */}
+            <div className="p-8 pb-6 text-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <div className="text-[10px] font-medium tracking-[3px] mb-4" style={{ color: 'rgba(16,185,129,0.5)' }}>
+                ⚡ ARENA MODE
               </div>
 
-              {isBattleAnimating && (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <motion.div
-                    className="flex items-center gap-8 mb-6"
-                    animate={{ scale: [1, 1.02, 1] }}
-                    transition={{ duration: 0.8, repeat: Infinity }}
+              {/* Fighters */}
+              <div className="flex items-center justify-center gap-8">
+                {/* You */}
+                <motion.div className="text-center" initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-black mx-auto mb-2"
+                    style={{ background: getAgentAvatar(selectedAgent.name), boxShadow: `0 0 25px ${getAgentAvatar(selectedAgent.name)}30` }}
                   >
-                    <div className="text-center">
-                      <div className="text-2xl font-semibold tracking-tight mb-1">{selectedAgent.name}</div>
-                      <div className="text-sm text-[#34D399]">Power {selectedAgent.power}</div>
-                    </div>
-                    <motion.div
-                      className="text-4xl text-[#10B981] font-bold"
-                      animate={{ scale: [1, 1.3, 1], rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity }}
-                    >
-                      ⚔️
-                    </motion.div>
-                    <div className="text-center">
-                      <div className="text-2xl font-semibold tracking-tight mb-1">Opponent</div>
-                      <div className="text-sm text-white/50">Calculating...</div>
-                    </div>
-                  </motion.div>
+                    {selectedAgent.name.split(' ').map(w => w[0]).join('')}
+                  </div>
+                  <div className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{selectedAgent.name}</div>
+                  <div className="text-xs mt-1" style={{ color: getPowerColor(selectedAgent.power) }}>Power {selectedAgent.power}</div>
+                </motion.div>
+
+                {/* VS */}
+                <motion.div
+                  className="text-3xl font-bold"
+                  style={{ color: '#10B981' }}
+                  animate={isBattleAnimating ? {
+                    scale: [1, 1.4, 1],
+                    rotate: [0, 10, -10, 0],
+                    textShadow: ['0 0 0px rgba(16,185,129,0)', '0 0 20px rgba(16,185,129,0.5)', '0 0 0px rgba(16,185,129,0)'],
+                  } : {}}
+                  transition={{ duration: 0.6, repeat: isBattleAnimating ? Infinity : 0 }}
+                >
+                  VS
+                </motion.div>
+
+                {/* Opponent */}
+                <motion.div className="text-center" initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+                  {opponent ? (
+                    <>
+                      <div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-black mx-auto mb-2"
+                        style={{ background: getAgentAvatar(opponent.name), boxShadow: `0 0 25px ${getAgentAvatar(opponent.name)}30` }}
+                      >
+                        {opponent.name.split(' ').map(w => w[0]).join('')}
+                      </div>
+                      <div className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{opponent.name}</div>
+                      <div className="text-xs mt-1" style={{ color: getPowerColor(opponent.power) }}>Power {opponent.power}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                        <span className="text-2xl">?</span>
+                      </div>
+                      <div className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>???</div>
+                    </>
+                  )}
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Battle Content */}
+            <div className="p-8">
+              {isBattleAnimating && (
+                <motion.div
+                  className="text-center py-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
                   <motion.div
-                    className="text-sm text-[#10B981]/80 tracking-widest"
-                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    className="text-xs tracking-[3px] font-medium"
+                    style={{ color: 'rgba(16,185,129,0.6)' }}
+                    animate={{ opacity: [0.4, 1, 0.4] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                   >
-                    BATTLE IN PROGRESS...
+                    BATTLE IN PROGRESS
                   </motion.div>
-                </div>
+                  <div className="flex justify-center gap-1 mt-3">
+                    {[0, 1, 2].map(i => (
+                      <motion.div
+                        key={i}
+                        className="w-1.5 h-1.5 rounded-full bg-[#10B981]"
+                        animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
               )}
 
               {!battleResult && !isBattleAnimating && (
                 <motion.button
                   onClick={startBattle}
                   disabled={isBattling}
-                  className="w-full py-5 rounded-2xl bg-[#10B981] text-black font-bold flex items-center justify-center gap-3 hover:bg-[#34D399] disabled:opacity-60 active:scale-[0.985] transition-all text-lg tracking-wider shadow-lg shadow-[#10B981]/25"
-                  whileHover={{ scale: 1.01 }}
+                  className="w-full py-4 rounded-xl text-sm font-bold text-black flex items-center justify-center gap-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #10B981, #059669)',
+                    boxShadow: '0 0 30px rgba(16,185,129,0.2)',
+                  }}
+                  whileHover={{ scale: 1.01, boxShadow: '0 0 40px rgba(16,185,129,0.35)' }}
                   whileTap={{ scale: 0.99 }}
                 >
-                  INITIATE BATTLE ⚡
-                  <Sword className="w-5 h-5" />
+                  INITIATE BATTLE <Sword className="w-4 h-4" />
                 </motion.button>
               )}
 
               {battleResult && (
-                <div className="text-center py-6">
-                  <div className="text-3xl tracking-tight mb-8">{battleResult}</div>
-                  <button onClick={closeBattle} className="text-sm text-[#34D399] hover:text-white transition-colors">CLOSE</button>
-                </div>
+                <motion.div
+                  className="text-center py-4"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                >
+                  <div className="text-4xl mb-3">
+                    {battleResult.type === 'win' ? '⚡' : battleResult.type === 'lose' ? '💀' : '🤝'}
+                  </div>
+                  <div className="text-xl font-semibold mb-2" style={{
+                    color: battleResult.type === 'win' ? '#10B981' : battleResult.type === 'lose' ? '#EF4444' : '#F59E0B'
+                  }}>
+                    {battleResult.type === 'win' ? 'VICTORY' : battleResult.type === 'lose' ? 'DEFEAT' : 'DRAW'}
+                  </div>
+                  <div className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.4)' }}>{battleResult.text}</div>
+
+                  <div className="flex gap-3 justify-center">
+                    <motion.button
+                      onClick={startBattle}
+                      className="px-6 py-2.5 rounded-xl text-xs font-bold text-black"
+                      style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      FIGHT AGAIN
+                    </motion.button>
+                    <button
+                      onClick={() => { setSelectedAgent(null); setBattleResult(null); setOpponent(null); }}
+                      className="px-6 py-2.5 rounded-xl text-xs font-medium transition-colors"
+                      style={{ color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      CHANGE AGENT
+                    </button>
+                  </div>
+                </motion.div>
               )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </motion.div>
+  );
 
-      {/* ─────── MINT MODAL ─────── */}
-      <AnimatePresence>
-        {showMintModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-6">
-            <motion.div
-              initial={{ opacity: 0, y: 60, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.96 }}
-              transition={{ type: "spring", damping: 26, stiffness: 240 }}
-              className="w-full max-w-[480px] border border-[#10B981]/15 rounded-3xl bg-[#070C0A] p-14 relative shadow-2xl shadow-[#10B981]/5"
+  /* ─────────────── MINT MODAL ─────────────── */
+  const MintModal = () => (
+    <AnimatePresence>
+      {showMintModal && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="w-full max-w-md rounded-2xl relative overflow-hidden"
+            style={{
+              background: '#0a1210',
+              border: '1px solid rgba(16,185,129,0.1)',
+              boxShadow: '0 0 80px rgba(16,185,129,0.08)',
+            }}
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 250, damping: 25 }}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setShowMintModal(false)}
+              className="absolute top-5 right-5 p-1.5 rounded-lg transition-colors"
+              style={{ color: 'rgba(255,255,255,0.25)' }}
             >
-              <button
-                onClick={closeMintModal}
-                className="absolute top-9 right-9 text-white/30 hover:text-white/70 text-3xl transition-colors"
-              >
-                ×
-              </button>
+              <X className="w-4 h-4" />
+            </button>
 
-              <div className="text-center mb-12">
-                <div className="text-[10px] tracking-[5px] text-[#10B981]/60 mb-4 font-medium">RITUAL TESTNET • CHAIN 1979</div>
-                <div className="text-7xl font-semibold tracking-[-4.5px] leading-none">Mint New Agent</div>
-                <div className="text-white/40 mt-4 text-[15px] tracking-wide">Create your on-chain warrior 🗡️</div>
+            <div className="p-8">
+              <div className="text-center mb-8">
+                <div className="text-[10px] font-medium tracking-[3px] mb-3" style={{ color: 'rgba(16,185,129,0.5)' }}>
+                  RITUAL TESTNET · CHAIN 1979
+                </div>
+                <h3 className="text-3xl font-semibold tracking-[-1.5px]" style={{ color: '#f0f2f0' }}>Mint Agent</h3>
+                <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Deploy your on-chain warrior</p>
               </div>
 
-              <div className="space-y-7">
+              <div className="space-y-5">
                 {/* Agent Name */}
                 <div>
-                  <div className="flex items-center justify-between mb-3.5 ml-1">
-                    <div className="text-xs tracking-[3px] text-white/50 font-medium">AGENT NAME</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-medium tracking-[2px] uppercase" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      Agent Name
+                    </label>
                     <button
-                      onClick={generateRandomName}
-                      className="flex items-center gap-2 text-xs text-[#34D399] hover:text-[#10B981] transition-all active:scale-95 px-3 py-1 rounded-lg hover:bg-[#10B981]/5"
+                      onClick={() => { setMintName(generateRandomAgentName()); setErrorMsg(''); }}
+                      className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors"
+                      style={{ color: '#34D399' }}
                     >
-                      <Shuffle className="w-3.5 h-3.5" /> GENERATE RANDOM
+                      <Shuffle className="w-3 h-3" /> Random
                     </button>
                   </div>
                   <input
@@ -646,48 +996,76 @@ export default function RitualAgentArena() {
                     value={mintName}
                     onChange={(e) => setMintName(e.target.value)}
                     placeholder="Enter agent name"
-                    className="w-full bg-[#10B981]/[0.04] border border-[#10B981]/10 rounded-2xl px-8 py-6 text-2xl focus:outline-none focus:border-[#10B981]/40 placeholder:text-white/20 transition-all tracking-[-0.5px]"
+                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      color: '#f0f2f0',
+                    }}
                   />
                 </div>
 
                 {/* X Handle */}
                 <div>
-                  <div className="text-xs tracking-[3px] text-white/50 mb-3.5 ml-1 flex items-center gap-2">
-                    X HANDLE <span className="text-[#10B981]">*</span>
-                    <span className="text-[10px] text-white/30 font-normal tracking-normal">(required)</span>
-                  </div>
-                  <div className="flex items-center bg-[#10B981]/[0.04] border border-[#10B981]/10 rounded-2xl focus-within:border-[#10B981]/40 transition-all group">
-                    <span className="text-[#34D399]/50 pl-8 pr-1 text-xl">@</span>
+                  <label className="text-[10px] font-medium tracking-[2px] uppercase mb-2 flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    X Handle <span style={{ color: '#10B981' }}>*</span>
+                  </label>
+                  <div
+                    className="flex items-center rounded-xl transition-all"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    <span className="pl-4 text-sm" style={{ color: 'rgba(52,211,153,0.4)' }}>@</span>
                     <input
                       type="text"
                       value={mintX}
                       onChange={(e) => setMintX(e.target.value)}
                       placeholder="username"
-                      className="flex-1 bg-transparent px-4 py-6 text-2xl focus:outline-none placeholder:text-white/20 tracking-[-0.3px]"
+                      className="flex-1 px-3 py-3 text-sm bg-transparent focus:outline-none"
+                      style={{ color: '#f0f2f0' }}
                     />
                   </div>
                 </div>
               </div>
 
               {errorMsg && (
-                <div className="mt-7 text-center text-sm text-red-400 tracking-wide bg-red-950/30 py-3 rounded-2xl border border-red-900/40">
+                <motion.div
+                  className="mt-4 px-4 py-2.5 rounded-xl text-xs text-center"
+                  style={{ color: '#F87171', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.1)' }}
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
                   {errorMsg}
-                </div>
+                </motion.div>
               )}
 
               <motion.button
                 onClick={mintNewAgent}
                 disabled={!mintName.trim() || !mintX.trim()}
-                className="w-full mt-10 py-6 rounded-2xl bg-[#10B981] text-black font-bold flex items-center justify-center gap-3 hover:bg-[#34D399] disabled:opacity-30 active:scale-[0.985] transition-all text-lg tracking-[1.5px] disabled:cursor-not-allowed shadow-lg shadow-[#10B981]/20"
+                className="w-full mt-6 py-3.5 rounded-xl text-sm font-bold text-black flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 0 20px rgba(16,185,129,0.15)' }}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
               >
-                MINT AGENT ON RITUAL ⚡
+                MINT ON RITUAL <Sparkles className="w-4 h-4" />
               </motion.button>
-            </motion.div>
-          </div>
-        )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  /* ─────────────── RENDER ─────────────── */
+  return (
+    <div className="min-h-screen" style={{ color: '#f0f2f0' }}>
+      <NeuralBackground />
+      <Navbar />
+
+      <AnimatePresence mode="wait">
+        {activeView === 'dashboard' ? <DashboardView key="dashboard" /> : <ArenaView key="arena" />}
       </AnimatePresence>
+
+      <MintModal />
     </div>
   );
 }
