@@ -54,7 +54,7 @@ interface BattleLog {
    ══════════════════════════════════════════════════════════════════ */
 const ADMIN_X_HANDLES = ["ohmythalassa"];
 const ADMIN_ADDRESSES = ["0x3883f0ddccc55ac112173bc67584952bf13b1a7d"];
-const RITUAL_EXPLORER = "https://ritual-testnet.explorer.caldera.xyz";
+const RITUAL_EXPLORER = "https://explorer.ritualfoundation.org";
 
 /* ══════════════════════════════════════════════════════════════════
    SOUND MANAGER — Web Audio API generated sounds
