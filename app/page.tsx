@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle,
@@ -651,6 +651,8 @@ export default function RitualAgentArena() {
   const [mintName, setMintName] = useState('');
   const [mintX, setMintX] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const mintNameRef = useRef<HTMLInputElement>(null);
+  const mintXRef = useRef<HTMLInputElement>(null);
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [agentPage, setAgentPage] = useState(0);
@@ -773,17 +775,26 @@ export default function RitualAgentArena() {
     }
     setShowMintModal(true);
     setMintName(''); setMintX(''); setErrorMsg('');
+    // Clear refs after modal mounts
+    setTimeout(() => {
+      if (mintNameRef.current) mintNameRef.current.value = '';
+      if (mintXRef.current) mintXRef.current.value = '';
+    }, 50);
   };
 
   const mintNewAgent = async () => {
-    if (!contract || !mintName.trim() || !mintX.trim()) return;
-    const nameLower = mintName.trim().toLowerCase();
-    const xLower = mintX.trim().toLowerCase();
+    const nameVal = mintNameRef.current?.value?.trim() || '';
+    const xVal = mintXRef.current?.value?.trim() || '';
+    if (!contract) return;
+    if (!nameVal) { setErrorMsg("Please enter an agent name"); return; }
+    if (!xVal) { setErrorMsg("Please enter an X handle"); return; }
+    const nameLower = nameVal.toLowerCase();
+    const xLower = xVal.toLowerCase();
     if (mintedAgents.find(a => a.name.toLowerCase() === nameLower)) { setErrorMsg("Agent name already taken"); return; }
     if (mintedAgents.find(a => a.xHandle.toLowerCase() === xLower)) { setErrorMsg("X handle already taken"); return; }
     try {
       const power = Math.floor(Math.random() * 16) + 80; // 80-95
-      const displayName = `${mintName.trim()} (@${mintX.trim()})`;
+      const displayName = `${nameVal} (@${xVal})`;
       const tx = await contract.mintAgent(displayName, power);
       const receipt = await tx.wait();
 
@@ -798,7 +809,7 @@ export default function RitualAgentArena() {
           }
         }
       } catch (e) { console.log('Could not parse tokenId from receipt, using fallback'); }
-      const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: mintName.trim(), xHandle: mintX.trim(), wallet: account, power, wins: 0, tokenId };
+      const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: nameVal, xHandle: xVal, wallet: account, power, wins: 0, tokenId };
       setMintedAgents(prev => [...prev, newAgent]);
       soundManager.mint();
       alert(`Agent minted! Token ID: ${tokenId}\nTx: ${receipt.hash}`);
@@ -2352,7 +2363,7 @@ export default function RitualAgentArena() {
                       Agent Name
                     </label>
                     <button
-                      onClick={() => { setMintName(generateRandomAgentName()); setErrorMsg(''); }}
+                      onClick={() => { if (mintNameRef.current) mintNameRef.current.value = generateRandomAgentName(); setErrorMsg(''); }}
                       className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors"
                       style={{ color: '#34D399' }}
                     >
@@ -2361,10 +2372,10 @@ export default function RitualAgentArena() {
                   </div>
                   <input
                     type="text"
-                    value={mintName}
-                    onChange={(e) => setMintName(e.target.value)}
+                    ref={mintNameRef}
+                    defaultValue=""
                     placeholder="Enter agent name"
-                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all"
+                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-colors"
                     style={{
                       background: 'rgba(255,255,255,0.03)',
                       border: '1px solid rgba(255,255,255,0.06)',
@@ -2389,8 +2400,8 @@ export default function RitualAgentArena() {
                     <span className="pl-4 text-sm select-none" style={{ color: 'rgba(52,211,153,0.4)' }}>@</span>
                     <input
                       type="text"
-                      value={mintX}
-                      onChange={(e) => setMintX(e.target.value)}
+                      ref={mintXRef}
+                      defaultValue=""
                       placeholder="username"
                       className="flex-1 px-3 py-3 text-sm bg-transparent focus:outline-none"
                       style={{ color: '#f0f2f0' }}
@@ -2412,8 +2423,7 @@ export default function RitualAgentArena() {
 
               <motion.button
                 onClick={mintNewAgent}
-                disabled={!mintName.trim() || !mintX.trim()}
-                className="w-full mt-6 py-3.5 rounded-xl text-sm font-bold text-black flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full mt-6 py-3.5 rounded-xl text-sm font-bold text-black flex items-center justify-center gap-2"
                 style={{ background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 0 20px rgba(16,185,129,0.15)' }}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
