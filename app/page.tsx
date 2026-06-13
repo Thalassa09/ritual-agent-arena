@@ -22,7 +22,10 @@ const CONTRACT_ADDRESS = '0x411fA6BEBfECE74293AC1B74d1f906688A13763D';
 
 const ABI = [
   "function mintAgent(string name) external returns (uint256)",
-  "function battle(uint256 agentId1, uint256 agentId2) external"
+  "function battle(uint256 agentId1, uint256 agentId2) external",
+  "function getAgent(uint256 agentId) external view returns (tuple(uint256 id, string name, uint256 wins, uint256 rating, address owner))",
+  "event BattleResult(uint256 indexed winnerId, uint256 indexed loserId, uint256 reward)",
+  "event AgentMinted(uint256 indexed id, address indexed owner, string name)"
 ];
 
 interface MintedAgent {
@@ -838,27 +841,47 @@ export default function RitualAgentArena() {
     setIsBattleAnimating(true);
     setBattleResult(null);
 
-    // Calculate local result — Shadow Garden (power 999999) always wins
-    const myPower = selectedAgent.power >= 999999 ? Infinity : selectedAgent.power + Math.random() * 10;
-    const oppPower = opponent.power >= 999999 ? Infinity : opponent.power + Math.random() * 10;
-    const localWin = myPower > oppPower;
-    const localDraw = myPower === oppPower;
-
     soundManager.battle(); // battle start sound
 
-    // On-chain battle — mandatory, no fallback
+    // On-chain battle — user must confirm in wallet (like mint)
     if (!contract) {
       alert("Connect wallet to battle on-chain!");
       setIsBattling(false); setIsBattleAnimating(false);
       return;
     }
 
+    // Validate tokenIds exist — both agents must be minted on-chain
+    if (!selectedAgent.tokenId || !opponent.tokenId) {
+      alert("Both agents must be minted on-chain to battle!");
+      setIsBattling(false); setIsBattleAnimating(false);
+      return;
+    }
+
     let txHash: string;
+    let onChainWinnerId: number;
+    let onChainLoserId: number;
     try {
-      const tx = await contract.battle(selectedAgent.tokenId || 0, opponent.tokenId || 0);
+      // This triggers wallet popup → user confirms → pays gas → on-chain tx
+      const tx = await contract.battle(selectedAgent.tokenId, opponent.tokenId);
       const receipt = await tx.wait();
       txHash = receipt.hash;
-      console.log(`Battle tx confirmed: ${txHash}`);
+
+      // Parse BattleResult event from receipt
+      let parsedWinner = 0;
+      let parsedLoser = 0;
+      for (const log of receipt.logs) {
+        try {
+          const parsed = contract.interface.parseLog({ topics: log.topics as string[], data: log.data });
+          if (parsed?.name === 'BattleResult') {
+            parsedWinner = Number(parsed.args.winnerId);
+            parsedLoser = Number(parsed.args.loserId);
+            break;
+          }
+        } catch {}
+      }
+      onChainWinnerId = parsedWinner;
+      onChainLoserId = parsedLoser;
+      console.log(`Battle on-chain! Winner: #${onChainWinnerId}, Loser: #${onChainLoserId}, Tx: ${txHash}`);
     } catch (err: any) {
       console.error("On-chain battle failed:", err.message);
       alert(`Battle failed: ${err.message}`);
@@ -869,16 +892,20 @@ export default function RitualAgentArena() {
     // Wait for animation
     await new Promise(resolve => setTimeout(resolve, 2800));
 
+    // Determine result FROM ON-CHAIN EVENT
+    const iWon = onChainWinnerId === selectedAgent.tokenId;
+    const iLost = onChainLoserId === selectedAgent.tokenId;
+
     let result: { text: string; type: 'win' | 'lose' | 'draw' };
-    if (localWin && !localDraw) {
-      result = { text: `${selectedAgent.name} defeated ${opponent.name}!`, type: 'win' };
+    if (iWon) {
+      result = { text: `${selectedAgent.name} defeated ${opponent.name}! ⚡`, type: 'win' };
       setMintedAgents(prev => prev.map(a =>
         a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a
       ));
       setSelectedAgent(prev => prev ? { ...prev, wins: prev.wins + 1 } : null);
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3000);
-    } else if (!localDraw) {
+    } else if (iLost) {
       result = { text: `${opponent.name} overpowered ${selectedAgent.name}`, type: 'lose' };
     } else {
       result = { text: `Draw! Equal power`, type: 'draw' };
@@ -1380,8 +1407,13 @@ export default function RitualAgentArena() {
                     {' vs '}
                     <span className="font-medium" style={{ color: '#f0f2f0' }}>{log.defender}</span>
                   </div>
-                  <div className="text-[10px] mt-1" style={{ color: log.winner === log.attacker ? '#10B981' : '#F59E0B' }}>
+                  <div className="text-[10px] mt-1 flex items-center gap-2" style={{ color: log.winner === log.attacker ? '#10B981' : '#F59E0B' }}>
                     {log.winner} won
+                    {log.txHash && (
+                      <span className="text-[8px] font-mono px-1 py-0.5 rounded" style={{ color: '#10B981', background: 'rgba(16,185,129,0.1)' }}>
+                        ⛓️ ON-CHAIN
+                      </span>
+                    )}
                   </div>
                 </motion.div>
               ))
