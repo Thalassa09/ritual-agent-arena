@@ -2382,10 +2382,14 @@ export default function RitualAgentArena() {
                     X Handle <span style={{ color: '#10B981' }}>*</span>
                   </label>
                   <div
-                    className="flex items-center rounded-xl transition-all"
+                    className="flex items-center rounded-xl transition-all cursor-text"
                     style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    onClick={(e) => {
+                      const input = e.currentTarget.querySelector('input');
+                      if (input) input.focus();
+                    }}
                   >
-                    <span className="pl-4 text-sm" style={{ color: 'rgba(52,211,153,0.4)' }}>@</span>
+                    <span className="pl-4 text-sm select-none" style={{ color: 'rgba(52,211,153,0.4)' }}>@</span>
                     <input
                       type="text"
                       value={mintX}
