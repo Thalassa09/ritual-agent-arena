@@ -18,14 +18,16 @@ declare global {
 
 const RITUAL_RPC = 'https://rpc.ritualfoundation.org';
 const RITUAL_CHAIN_ID = 1979;
-const CONTRACT_ADDRESS = '0x411fA6BEBfECE74293AC1B74d1f906688A13763D';
+const CONTRACT_ADDRESS = '0x56351488B227BeD77074BA29Fc529464De76030C';
 
 const ABI = [
-  "function mintAgent(string name) external returns (uint256)",
+  "function mintAgent(string name, uint256 power) external returns (uint256)",
   "function battle(uint256 agentId1, uint256 agentId2) external",
-  "function getAgent(uint256 agentId) external view returns (tuple(uint256 id, string name, uint256 wins, uint256 rating, address owner))",
+  "function getAgent(uint256 agentId) external view returns (tuple(uint256 id, string name, uint256 power, uint256 wins, uint256 rating, address owner))",
+  "function agents(uint256 agentId) external view returns (uint256 id, string name, uint256 power, uint256 wins, uint256 rating, address owner)",
   "event BattleResult(uint256 indexed winnerId, uint256 indexed loserId, uint256 reward)",
-  "event AgentMinted(uint256 indexed id, address indexed owner, string name)"
+  "event PowerIncreased(uint256 indexed agentId, uint256 oldPower, uint256 newPower)",
+  "event AgentMinted(uint256 indexed id, address indexed owner, string name, uint256 power)"
 ];
 
 interface MintedAgent {
@@ -780,27 +782,22 @@ export default function RitualAgentArena() {
     if (mintedAgents.find(a => a.name.toLowerCase() === nameLower)) { setErrorMsg("Agent name already taken"); return; }
     if (mintedAgents.find(a => a.xHandle.toLowerCase() === xLower)) { setErrorMsg("X handle already taken"); return; }
     try {
+      const power = Math.floor(Math.random() * 16) + 80; // 80-95
       const displayName = `${mintName.trim()} (@${mintX.trim()})`;
-      const tx = await contract.mintAgent(displayName);
+      const tx = await contract.mintAgent(displayName, power);
       const receipt = await tx.wait();
 
-      // Get tokenId from tx receipt — try parsing Transfer event or return value
+      // Get tokenId from AgentMinted event
       let tokenId = mintedAgents.length + 1; // fallback
       try {
-        // ERC-721 Transfer event: from=0x0 means mint
-        const transferLog = receipt.logs?.find((log: any) => {
-          try {
-            const parsed = contract.interface.parseLog({ topics: log.topics as string[], data: log.data });
-            return parsed?.name === 'Transfer';
-          } catch { return false; }
-        });
-        if (transferLog) {
-          const parsed = contract.interface.parseLog({ topics: transferLog.topics as string[], data: transferLog.data });
-          if (parsed) tokenId = Number(parsed.args.tokenId);
+        for (const log of receipt.logs) {
+          const parsed = contract.interface.parseLog({ topics: log.topics as string[], data: log.data });
+          if (parsed?.name === 'AgentMinted') {
+            tokenId = Number(parsed.args.id);
+            break;
+          }
         }
       } catch (e) { console.log('Could not parse tokenId from receipt, using fallback'); }
-
-      const power = Math.floor(Math.random() * 16) + 80;
       const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: mintName.trim(), xHandle: mintX.trim(), wallet: account, power, wins: 0, tokenId };
       setMintedAgents(prev => [...prev, newAgent]);
       soundManager.mint();
