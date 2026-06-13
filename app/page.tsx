@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle,
   ChevronRight, ChevronLeft, Activity, Flame, Crown, Shield, Sparkles,
-  X, Search, Lock, Star, Eye, Hexagon, ArrowUpDown
+  X, Search, Lock, Star, Eye, Hexagon, ArrowUpDown,
+  Volume2, VolumeX, Sun, Moon, User, ExternalLink, ArrowLeft
 } from 'lucide-react';
 import { ethers } from 'ethers';
 
@@ -50,6 +51,71 @@ const ADMIN_X_HANDLES = ["ohmythalassa"];
 const ADMIN_ADDRESSES = ["0x3883f0ddccc55ac112173bc67584952bf13b1a7d"];
 const RITUAL_EXPLORER = "https://ritual-testnet.explorer.caldera.xyz";
 
+/* ══════════════════════════════════════════════════════════════════
+   SOUND MANAGER — Web Audio API generated sounds
+   ══════════════════════════════════════════════════════════════════ */
+const createSoundManager = () => {
+  let ctx: AudioContext | null = null;
+  let muted = false;
+
+  const getCtx = () => {
+    if (!ctx) ctx = new AudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  };
+
+  const playTone = (freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.12) => {
+    if (muted) return;
+    try {
+      const c = getCtx();
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, c.currentTime);
+      gain.gain.setValueAtTime(vol, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start();
+      osc.stop(c.currentTime + dur);
+    } catch {}
+  };
+
+  return {
+    battle: () => {
+      if (muted) return;
+      try {
+        const c = getCtx();
+        const buf = c.createBuffer(1, c.sampleRate * 0.2, c.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (c.sampleRate * 0.04));
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.25, c.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.2);
+        src.connect(g); g.connect(c.destination); src.start();
+        playTone(220, 0.15, 'sawtooth', 0.06);
+      } catch {}
+    },
+    victory: () => {
+      [523.25, 659.25, 783.99].forEach((f, i) => setTimeout(() => playTone(f, 0.8, 'triangle', 0.1), i * 120));
+      setTimeout(() => playTone(1046.5, 1.0, 'sine', 0.08), 350);
+    },
+    defeat: () => {
+      [329.63, 293.66, 261.63].forEach((f, i) => setTimeout(() => playTone(f, 0.6, 'sawtooth', 0.06), i * 150));
+    },
+    click: () => playTone(880, 0.04, 'sine', 0.08),
+    mint: () => {
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => setTimeout(() => playTone(f, 0.3, 'sine', 0.08), i * 80));
+    },
+    toggleMute: () => { muted = !muted; return muted; },
+    isMuted: () => muted,
+  };
+};
+
+const soundManager = createSoundManager();
+
 const randomNames = [
   "Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift",
   "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium",
@@ -92,7 +158,7 @@ const getInitials = (name: string) => name.split(' ').map(w => w[0]).join('');
    ANIMATED BACKGROUND — Multi-layer cinematic canvas
    ══════════════════════════════════════════════════════════════════ */
 const AnimatedBackground = () => (
-  <div className="fixed inset-0 z-[-1] overflow-hidden" style={{ background: '#020504' }}>
+  <div className="fixed inset-0 z-[-1] overflow-hidden" style={{ background: 'var(--arena-bg, #020504)', transition: 'background 0.5s ease' }}>
     {/* Noise grain texture */}
     <div className="absolute inset-0 opacity-[0.025]" style={{
       backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
@@ -550,7 +616,10 @@ const RankBadge = ({ rank }: { rank: number }) => {
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'arena' | 'agents'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'arena' | 'agents' | 'profile'>('dashboard');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [soundMuted, setSoundMuted] = useState(false);
+  const [selectedProfileAgent, setSelectedProfileAgent] = useState<MintedAgent | null>(null);
 
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
     { id: 1, name: "Shadow Oracle", xHandle: "shadow_ai", wallet: "0x0000", power: 83, wins: 12, tokenId: 1 },
@@ -717,6 +786,7 @@ export default function RitualAgentArena() {
       const power = Math.floor(Math.random() * 16) + 80;
       const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: mintName.trim(), xHandle: mintX.trim(), wallet: account, power, wins: 0, tokenId };
       setMintedAgents(prev => [...prev, newAgent]);
+      soundManager.mint();
       alert(`Agent minted! Token ID: ${tokenId}\nTx: ${receipt.hash}`);
       setShowMintModal(false);
     } catch (err) { console.error(err); alert("Mint failed"); }
@@ -769,6 +839,8 @@ export default function RitualAgentArena() {
     const localWin = myPower > oppPower;
     const localDraw = myPower === oppPower; // only if both are Infinity (impossible)
 
+    soundManager.battle(); // battle start sound
+
     // Call on-chain battle if contract is available and both agents have tokenIds
     let txHash: string | undefined;
     if (contract && selectedAgent.tokenId && opp.tokenId) {
@@ -810,6 +882,7 @@ export default function RitualAgentArena() {
     }, ...prev].slice(0, 50));
 
     setBattleResult(result);
+    if (result.type === 'win') soundManager.victory(); else if (result.type === 'lose') soundManager.defeat();
     setIsBattleAnimating(false);
     setIsBattling(false);
   };
@@ -821,9 +894,10 @@ export default function RitualAgentArena() {
     <motion.nav
       className="sticky top-0 z-50"
       style={{
-        background: 'rgba(2,5,4,0.75)',
+        background: 'var(--arena-nav, rgba(2,5,4,0.75))',
         backdropFilter: 'blur(24px) saturate(1.3)',
-        borderBottom: '1px solid rgba(16,185,129,0.06)',
+        borderBottom: '1px solid var(--arena-nav-border, rgba(16,185,129,0.06))',
+        transition: 'background 0.5s ease, border-color 0.5s ease',
       }}
       initial={{ y: -80 }}
       animate={{ y: 0 }}
@@ -879,8 +953,31 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
-        {/* Right — Wallet */}
-        <div className="flex items-center gap-3">
+        {/* Right — Sound + Theme + Wallet */}
+        <div className="flex items-center gap-2">
+          {/* Sound toggle */}
+          <motion.button
+            onClick={() => { const m = soundManager.toggleMute(); setSoundMuted(m); }}
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: soundMuted ? 'rgba(255,255,255,0.2)' : '#10B981', background: 'rgba(255,255,255,0.03)' }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title={soundMuted ? 'Unmute' : 'Mute'}
+          >
+            {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+          </motion.button>
+
+          {/* Theme toggle */}
+          <motion.button
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))', background: 'var(--arena-card, rgba(255,255,255,0.03))' }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          </motion.button>
           {account ? (
             <>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono" style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
@@ -1114,9 +1211,9 @@ export default function RitualAgentArena() {
                   transition={{ delay: 0.1 * i }}
                   whileHover={isOwn || !account ? { borderColor: 'rgba(16,185,129,0.2)', y: -3 } : {}}
                   onClick={() => {
-                    if (!account) { alert("Connect wallet first"); return; }
-                    if (isOwn) enterArena(agent);
-                    else alert("This is not your agent. You can only battle with your own agent.");
+                    setSelectedProfileAgent(agent);
+                    setActiveView('profile');
+                    soundManager.click();
                   }}
                 >
                   {/* Hover glow */}
@@ -1168,12 +1265,15 @@ export default function RitualAgentArena() {
                         <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{agent.wins} wins</span>
                       </div>
                       {isOwn ? (
-                        <motion.div
+                        <motion.button
                           className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                           style={{ color: '#10B981', background: 'rgba(16,185,129,0.08)' }}
+                          onClick={(e) => { e.stopPropagation(); enterArena(agent); }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                         >
                           Battle <ChevronRight className="w-3 h-3" />
-                        </motion.div>
+                        </motion.button>
                       ) : (
                         <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-60 transition-opacity"
                           style={{ color: 'rgba(255,255,255,0.3)' }}>
@@ -1854,6 +1954,252 @@ export default function RitualAgentArena() {
   );
 
   /* ══════════════════════════════════════════════════════════════════
+     AGENT PROFILE VIEW
+     ══════════════════════════════════════════════════════════════════ */
+  const AgentProfileView = () => {
+    if (!selectedProfileAgent) return null;
+    const agent = selectedProfileAgent;
+    const avatarColor = getAgentAvatar(agent.name);
+    const initials = agent.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const isBoss = agent.power >= 999999;
+
+    const agentBattles = battleLogs.filter(b => b.attacker === agent.name || b.defender === agent.name);
+    const wins = agentBattles.filter(b => b.winner === agent.name).length;
+    const losses = agentBattles.filter(b => b.winner !== agent.name).length;
+    const total = agentBattles.length || 1;
+    const winRate = Math.round((wins / total) * 100);
+
+    // Win rate donut
+    const donutR = 40;
+    const donutC = 2 * Math.PI * donutR;
+    const winPct = (wins / total) * donutC;
+    const lossPct = (losses / total) * donutC;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="max-w-[1100px] mx-auto px-6 py-8"
+      >
+        {/* Back button */}
+        <motion.button
+          onClick={() => { setSelectedProfileAgent(null); setActiveView('dashboard'); soundManager.click(); }}
+          className="flex items-center gap-2 mb-6 text-xs font-medium tracking-[1px] uppercase"
+          style={{ color: 'rgba(255,255,255,0.35)' }}
+          whileHover={{ x: -3, color: '#10B981' }}
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Back
+        </motion.button>
+
+        {/* Profile header */}
+        <div className="flex flex-col md:flex-row gap-8 mb-10">
+          {/* Avatar */}
+          <motion.div
+            className="flex-shrink-0 flex flex-col items-center"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+          >
+            <div
+              className="w-28 h-28 rounded-2xl flex items-center justify-center text-3xl font-bold relative"
+              style={{
+                background: `linear-gradient(135deg, ${avatarColor}20, ${avatarColor}08)`,
+                border: `2px solid ${isBoss ? 'rgba(168,85,247,0.3)' : avatarColor + '25'}`,
+                color: avatarColor,
+                boxShadow: isBoss ? '0 0 30px rgba(168,85,247,0.15)' : `0 0 30px ${avatarColor}10`,
+              }}
+            >
+              {initials}
+              {isBoss && (
+                <div className="absolute -top-2 -right-2">
+                  <Crown className="w-6 h-6 text-purple-400" />
+                </div>
+              )}
+            </div>
+            <div className="mt-3 text-center">
+              <div className="text-xs font-mono tracking-wider flex items-center gap-1" style={{ color: '#10B981' }}>
+                @{agent.xHandle}
+                <a href={`https://x.com/${agent.xHandle}`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="w-2.5 h-2.5 opacity-40 hover:opacity-100" />
+                </a>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Info */}
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--arena-text, #f0f2f0)' }}>{agent.name}</h1>
+              {isBoss && <span className="px-2 py-0.5 text-[9px] font-bold tracking-[1.5px] uppercase rounded-full" style={{ background: 'rgba(168,85,247,0.15)', color: '#A855F7' }}>BOSS</span>}
+            </div>
+            <div className="text-xs font-mono mb-4" style={{ color: 'rgba(255,255,255,0.25)' }}>
+              {isBoss ? 'Shadow Garden Admin' : `Token #${agent.tokenId}`} · {agentBattles.length} battles
+            </div>
+
+            {/* Battle button for own agent */}
+            {account && agent.wallet.toLowerCase() === account.toLowerCase() && !isBoss && (
+              <motion.button
+                onClick={() => { enterArena(agent); soundManager.click(); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium mb-4"
+                style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10B981' }}
+                whileHover={{ scale: 1.03, boxShadow: '0 0 15px rgba(16,185,129,0.15)' }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <Sword className="w-3.5 h-3.5" /> Enter Arena
+              </motion.button>
+            )}
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'POWER', value: isBoss ? '∞' : agent.power, color: isBoss ? '#A855F7' : getPowerColor(agent.power) },
+                { label: 'WINS', value: agent.wins, color: '#10B981' },
+                { label: 'LOSSES', value: losses, color: '#EF4444' },
+                { label: 'WIN RATE', value: `${winRate}%`, color: '#3B82F6' },
+              ].map((s, i) => (
+                <motion.div
+                  key={s.label}
+                  className="rounded-xl p-4"
+                  style={{ background: 'var(--arena-card, rgba(255,255,255,0.015))', border: '1px solid var(--arena-border, rgba(255,255,255,0.04))' }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="text-[9px] font-medium tracking-[2px] uppercase mb-2" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>{s.label}</div>
+                  <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Charts + History */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Win rate donut */}
+          <motion.div
+            className="rounded-xl p-6"
+            style={{ background: 'var(--arena-card, rgba(255,255,255,0.015))', border: '1px solid var(--arena-border, rgba(255,255,255,0.04))' }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="text-[10px] font-medium tracking-[2px] uppercase mb-4" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>Win Rate</div>
+            <div className="flex items-center justify-center">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r={donutR} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="8" />
+                <circle cx="50" cy="50" r={donutR} fill="none" stroke="#10B981" strokeWidth="8"
+                  strokeDasharray={`${winPct} ${donutC - winPct}`} strokeDashoffset={donutC * 0.25}
+                  strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }}
+                />
+                <circle cx="50" cy="50" r={donutR} fill="none" stroke="#EF4444" strokeWidth="8"
+                  strokeDasharray={`${lossPct} ${donutC - lossPct}`} strokeDashoffset={donutC * 0.25 - winPct}
+                  strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }}
+                />
+                <text x="50" y="48" textAnchor="middle" fill="#f0f2f0" fontSize="16" fontWeight="bold">{winRate}%</text>
+                <text x="50" y="62" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="8">{total} battles</text>
+              </svg>
+            </div>
+            <div className="flex justify-center gap-4 mt-4">
+              <div className="flex items-center gap-1.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <div className="w-2 h-2 rounded-full bg-emerald-500" /> Win ({wins})
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <div className="w-2 h-2 rounded-full bg-red-500" /> Lose ({losses})
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Battle history */}
+          <motion.div
+            className="col-span-2 rounded-xl p-6 overflow-y-auto"
+            style={{ background: 'var(--arena-card, rgba(255,255,255,0.015))', border: '1px solid var(--arena-border, rgba(255,255,255,0.04))', maxHeight: '300px' }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="text-[10px] font-medium tracking-[2px] uppercase mb-4" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>
+              Battle History ({agentBattles.length})
+            </div>
+            {agentBattles.length === 0 ? (
+              <div className="text-xs text-center py-8" style={{ color: 'rgba(255,255,255,0.15)' }}>
+                No battles yet. Enter the arena!
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {agentBattles.slice(0, 20).map((b, i) => {
+                  const isWin = b.winner === agent.name;
+                  const opponent = b.attacker === agent.name ? b.defender : b.attacker;
+                  return (
+                    <motion.div
+                      key={b.id}
+                      className="flex items-center justify-between py-2.5 px-3 rounded-lg"
+                      style={{ background: isWin ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)' }}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-[10px] font-bold tracking-wider"
+                          style={{ color: isWin ? '#10B981' : '#EF4444' }}
+                        >
+                          {isWin ? 'W' : 'L'}
+                        </div>
+                        <div>
+                          <div className="text-xs" style={{ color: 'var(--arena-text, #f0f2f0)' }}>
+                            {b.attacker} vs {b.defender}
+                          </div>
+                          <div className="text-[10px] font-mono" style={{ color: 'var(--arena-text-dim, rgba(255,255,255,0.2))' }}>
+                            Winner: {b.winner}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-[10px] font-mono" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>
+                        {timeAgo(b.timestamp)}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  /* ══════════════════════════════════════════════════════════════════
+     FOOTER
+     ══════════════════════════════════════════════════════════════════ */
+  const Footer = () => (
+    <footer className="mt-20 pb-10 text-center">
+      <div className="flex items-center justify-center gap-3 mb-3">
+        <div className="h-px w-12" style={{ background: 'rgba(16,185,129,0.12)' }} />
+        <div className="text-[10px] font-medium tracking-[2px] uppercase" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>
+          Crafted by
+        </div>
+        <div className="h-px w-12" style={{ background: 'rgba(16,185,129,0.12)' }} />
+      </div>
+      <a
+        href="https://x.com/ohmythalassa"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:scale-105"
+        style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.08)' }}
+      >
+        <span className="text-sm font-semibold" style={{ color: '#10B981' }}>Thalassa</span>
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#10B981">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+        <ExternalLink className="w-2.5 h-2.5 opacity-30" />
+      </a>
+      <div className="mt-3 text-[9px] tracking-[1px]" style={{ color: 'var(--arena-text-dim, rgba(255,255,255,0.1))' }}>
+        Ritual Agent Arena · Testnet
+      </div>
+    </footer>
+  );
+
+  /* ══════════════════════════════════════════════════════════════════
      MINT MODAL
      ══════════════════════════════════════════════════════════════════ */
   const MintModal = () => (
@@ -1979,7 +2325,7 @@ export default function RitualAgentArena() {
      RENDER
      ══════════════════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen" style={{ color: '#f0f2f0' }}>
+    <div data-theme={theme} className="min-h-screen" style={{ color: 'var(--arena-text, #f0f2f0)', background: 'var(--arena-bg, #020504)', transition: 'background 0.5s ease, color 0.5s ease' }}>
       <AnimatedBackground />
       <FloatingRings />
       <MouseSpotlight />
@@ -1990,8 +2336,10 @@ export default function RitualAgentArena() {
         {activeView === 'dashboard' && <DashboardView key="dashboard" />}
         {activeView === 'arena' && <ArenaView key="arena" />}
         {activeView === 'agents' && <AgentsView key="agents" />}
+        {activeView === 'profile' && <AgentProfileView key="profile" />}
       </AnimatePresence>
 
+      {activeView !== 'profile' && <Footer />}
       <MintModal />
     </div>
   );
