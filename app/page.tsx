@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle, ChevronRight, Activity, Flame, Crown, Shield, Sparkles, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle,
+  ChevronRight, ChevronLeft, Activity, Flame, Crown, Shield, Sparkles,
+  X, Search, Lock, Star, Eye, Hexagon, ArrowUpDown
+} from 'lucide-react';
 import { ethers } from 'ethers';
 
 declare global {
@@ -38,96 +42,30 @@ interface BattleLog {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   ANIMATED BACKGROUND — Luminance Stacking (Linear-inspired)
+   CONSTANTS
    ══════════════════════════════════════════════════════════════════ */
-const NeuralBackground = () => (
-  <div className="fixed inset-0 z-[-1] overflow-hidden" style={{ background: '#030806' }}>
-    {/* Mesh gradient layer */}
-    <div className="absolute inset-0" style={{
-      background: `
-        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(16,185,129,0.07) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 80% at 80% 90%, rgba(20,184,166,0.05) 0%, transparent 55%),
-        radial-gradient(ellipse 50% 50% at 50% 50%, rgba(132,204,22,0.03) 0%, transparent 70%)
-      `
-    }} />
+const ADMIN_X_HANDLES = ["ohmythalassa"];
+const ADMIN_ADDRESSES = ["0x3883f0ddccc55ac112173bc67584952bf13b1a7d"];
 
-    {/* Subtle grid — Linear-style */}
-    <div className="absolute inset-0" style={{
-      backgroundImage: `
-        linear-gradient(rgba(16,185,129,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(16,185,129,0.03) 1px, transparent 1px)
-      `,
-      backgroundSize: '80px 80px'
-    }} />
+const randomNames = [
+  "Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift",
+  "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium",
+  "Obsidian", "Celestia", "Helix", "Orion", "Zenith", "Lunar", "Solstice"
+];
+const randomSuffixes = [
+  "Oracle", "Weaver", "Striker", "Knight", "Reaper", "Warden", "Sage",
+  "Hunter", "Lord", "Walker"
+];
 
-    {/* Floating orbs — subtle, not spammy */}
-    {[
-      { size: 800, x: '10%', y: '-20%', color: 'rgba(16,185,129,0.06)', dur: 55 },
-      { size: 600, x: '70%', y: '60%', color: 'rgba(20,184,166,0.04)', dur: 65 },
-      { size: 500, x: '40%', y: '30%', color: 'rgba(132,204,22,0.03)', dur: 75 },
-    ].map((orb, i) => (
-      <motion.div
-        key={i}
-        className="absolute rounded-full"
-        style={{
-          width: orb.size,
-          height: orb.size,
-          left: orb.x,
-          top: orb.y,
-          background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
-          filter: 'blur(60px)',
-        }}
-        animate={{
-          x: [0, 80, -60, 0],
-          y: [0, -60, 40, 0],
-          scale: [1, 1.1, 0.95, 1],
-        }}
-        transition={{ duration: orb.dur, repeat: Infinity, ease: 'easeInOut' }}
-      />
-    ))}
+const generateRandomAgentName = () =>
+  `${randomNames[Math.floor(Math.random() * randomNames.length)]} ${randomSuffixes[Math.floor(Math.random() * randomSuffixes.length)]}`;
 
-    {/* Minimal particles — only 12, not 48 */}
-    {Array.from({ length: 12 }).map((_, i) => (
-      <motion.div
-        key={i}
-        className="absolute rounded-full"
-        style={{
-          width: i % 3 === 0 ? 3 : 2,
-          height: i % 3 === 0 ? 3 : 2,
-          left: `${(i * 8.3 + 5) % 100}%`,
-          top: `${(i * 7.1 + 3) % 100}%`,
-          backgroundColor: i % 4 === 0 ? '#84CC16' : i % 3 === 0 ? '#34D399' : '#10B981',
-        }}
-        animate={{
-          y: [0, -200, 0],
-          opacity: [0, 0.6, 0],
-          scale: [0.5, 1.5, 0.5],
-        }}
-        transition={{
-          duration: 16 + (i % 6) * 2,
-          repeat: Infinity,
-          delay: i * 1.2,
-          ease: 'easeInOut',
-        }}
-      />
-    ))}
-  </div>
-);
-
-/* ══════════════════════════════════════════════════════════════════
-   UTILS
-   ══════════════════════════════════════════════════════════════════ */
-const randomNames = ["Shadow", "Void", "Nexus", "Aether", "Eclipse", "Phantom", "Nova", "Rift", "Specter", "Quantum", "Nebula", "Vortex", "Astral", "Chronos", "Elysium", "Obsidian", "Celestia", "Helix", "Orion", "Zenith", "Lunar", "Solstice"];
-const randomSuffixes = ["Oracle", "Weaver", "Striker", "Knight", "Reaper", "Warden", "Sage", "Hunter", "Lord", "Walker"];
-const generateRandomAgentName = () => {
-  return `${randomNames[Math.floor(Math.random() * randomNames.length)]} ${randomSuffixes[Math.floor(Math.random() * randomSuffixes.length)]}`;
-};
+const AVATAR_COLORS = ['#10B981', '#34D399', '#059669', '#84CC16', '#14B8A6', '#6EE7B7', '#A7F3D0', '#4ADE80'];
 
 const getAgentAvatar = (name: string) => {
-  const colors = ['#10B981', '#34D399', '#059669', '#84CC16', '#14B8A6', '#6EE7B7'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 };
 
 const getPowerColor = (power: number) => {
@@ -137,8 +75,205 @@ const getPowerColor = (power: number) => {
   return '#8B5CF6';
 };
 
+const getInitials = (name: string) => name.split(' ').map(w => w[0]).join('');
+
 /* ══════════════════════════════════════════════════════════════════
-   POWER BAR COMPONENT
+   ANIMATED BACKGROUND — Multi-layer cinematic canvas
+   ══════════════════════════════════════════════════════════════════ */
+const AnimatedBackground = () => (
+  <div className="fixed inset-0 z-[-1] overflow-hidden" style={{ background: '#020504' }}>
+    {/* Noise grain texture */}
+    <div className="absolute inset-0 opacity-[0.025]" style={{
+      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+      backgroundSize: '180px 180px',
+    }} />
+
+    {/* Aurora wave — top */}
+    <motion.div
+      className="absolute"
+      style={{
+        top: '-12%', left: '-15%', width: '130%', height: '45%',
+        background: 'linear-gradient(180deg, rgba(16,185,129,0.07) 0%, rgba(52,211,153,0.03) 40%, transparent 100%)',
+        filter: 'blur(70px)',
+      }}
+      animate={{ x: [0, 60, -40, 0], opacity: [0.5, 1, 0.6, 0.5] }}
+      transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+    />
+
+    {/* Aurora wave — secondary */}
+    <motion.div
+      className="absolute"
+      style={{
+        top: '3%', left: '15%', width: '70%', height: '30%',
+        background: 'linear-gradient(135deg, rgba(132,204,22,0.05) 0%, rgba(16,185,129,0.02) 50%, transparent 100%)',
+        filter: 'blur(90px)',
+      }}
+      animate={{ x: [0, -50, 70, 0], opacity: [0.4, 0.8, 0.3, 0.4] }}
+      transition={{ duration: 28, repeat: Infinity, ease: 'easeInOut' }}
+    />
+
+    {/* Large floating orbs */}
+    {[
+      { size: 900, x: '5%', y: '-18%', c: 'rgba(16,185,129,0.07)', dur: 50, dx: 120, dy: -90 },
+      { size: 700, x: '78%', y: '45%', c: 'rgba(20,184,166,0.05)', dur: 60, dx: -90, dy: 70 },
+      { size: 650, x: '30%', y: '20%', c: 'rgba(132,204,22,0.04)', dur: 70, dx: 80, dy: -60 },
+      { size: 550, x: '55%', y: '72%', c: 'rgba(52,211,153,0.05)', dur: 55, dx: -70, dy: -80 },
+      { size: 450, x: '15%', y: '82%', c: 'rgba(16,185,129,0.04)', dur: 65, dx: 100, dy: 55 },
+      { size: 380, x: '85%', y: '10%', c: 'rgba(110,231,183,0.03)', dur: 45, dx: -60, dy: 80 },
+    ].map((orb, i) => (
+      <motion.div
+        key={`orb-${i}`}
+        className="absolute rounded-full"
+        style={{
+          width: orb.size, height: orb.size, left: orb.x, top: orb.y,
+          background: `radial-gradient(circle, ${orb.c} 0%, transparent 70%)`,
+          filter: 'blur(50px)',
+        }}
+        animate={{
+          x: [0, orb.dx, -orb.dx * 0.5, 0],
+          y: [0, orb.dy, -orb.dy * 0.5, 0],
+          scale: [1, 1.12, 0.92, 1],
+        }}
+        transition={{ duration: orb.dur, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    ))}
+
+    {/* Grid */}
+    <div className="absolute inset-0" style={{
+      backgroundImage: `
+        linear-gradient(rgba(16,185,129,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16,185,129,0.022) 1px, transparent 1px)
+      `,
+      backgroundSize: '60px 60px',
+    }} />
+
+    {/* Grid intersection dots */}
+    {Array.from({ length: 20 }).map((_, i) => (
+      <motion.div
+        key={`dot-${i}`}
+        className="absolute rounded-full"
+        style={{
+          width: 3, height: 3,
+          left: `${(i * 5 + 3) % 100}%`,
+          top: `${(i * 5.3 + 7) % 100}%`,
+          backgroundColor: 'rgba(16,185,129,0.15)',
+        }}
+        animate={{ opacity: [0.1, 0.4, 0.1], scale: [1, 1.8, 1] }}
+        transition={{ duration: 4 + (i % 5), repeat: Infinity, delay: i * 0.3, ease: 'easeInOut' }}
+      />
+    ))}
+
+    {/* Floating particles — 45 */}
+    {Array.from({ length: 45 }).map((_, i) => (
+      <motion.div
+        key={`p-${i}`}
+        className="absolute rounded-full"
+        style={{
+          width: 1.5 + (i % 4), height: 1.5 + (i % 4),
+          left: `${(i * 2.2 + 2) % 100}%`,
+          top: `${(i * 2.1 + 4) % 100}%`,
+          backgroundColor: ['#10B981', '#34D399', '#84CC16', '#059669', '#14B8A6', '#A7F3D0'][i % 6],
+        }}
+        animate={{
+          y: [0, -120 - (i % 4) * 40, 0],
+          x: [0, (i % 2 === 0 ? 25 : -25), 0],
+          opacity: [0, 0.45 + (i % 3) * 0.15, 0],
+          scale: [0.4, 1.3, 0.4],
+        }}
+        transition={{
+          duration: 10 + (i % 8) * 2,
+          repeat: Infinity,
+          delay: i * 0.35,
+          ease: 'easeInOut',
+        }}
+      />
+    ))}
+
+    {/* Floating geometric shapes */}
+    {[
+      { x: '12%', y: '18%', size: 22, dur: 35, rot: 360 },
+      { x: '82%', y: '25%', size: 16, dur: 40, rot: -360 },
+      { x: '48%', y: '75%', size: 28, dur: 45, rot: 360 },
+      { x: '22%', y: '88%', size: 18, dur: 30, rot: -360 },
+      { x: '92%', y: '55%', size: 14, dur: 38, rot: 360 },
+      { x: '65%', y: '8%', size: 20, dur: 42, rot: -360 },
+    ].map((s, i) => (
+      <motion.div
+        key={`shape-${i}`}
+        className="absolute"
+        style={{
+          left: s.x, top: s.y, width: s.size, height: s.size,
+          border: '1px solid rgba(16,185,129,0.06)',
+          borderRadius: i % 2 === 0 ? '4px' : '0',
+          clipPath: i % 3 === 0 ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
+        }}
+        animate={{
+          rotate: [0, s.rot],
+          y: [0, -25, 0],
+          opacity: [0.1, 0.25, 0.1],
+        }}
+        transition={{ duration: s.dur, repeat: Infinity, ease: 'linear' }}
+      />
+    ))}
+
+    {/* Horizontal light beams */}
+    {[
+      { top: '20%', opacity: 0.015, width: '60%', left: '20%', dur: 18 },
+      { top: '50%', opacity: 0.01, width: '40%', left: '40%', dur: 22 },
+      { top: '75%', opacity: 0.012, width: '55%', left: '10%', dur: 20 },
+    ].map((beam, i) => (
+      <motion.div
+        key={`beam-${i}`}
+        className="absolute"
+        style={{
+          top: beam.top, left: beam.left, width: beam.width, height: 1,
+          background: `linear-gradient(90deg, transparent, rgba(16,185,129,${beam.opacity}), transparent)`,
+        }}
+        animate={{ opacity: [0.3, 1, 0.3], scaleX: [0.8, 1.2, 0.8] }}
+        transition={{ duration: beam.dur, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    ))}
+  </div>
+);
+
+/* ══════════════════════════════════════════════════════════════════
+   CONFETTI EXPLOSION
+   ══════════════════════════════════════════════════════════════════ */
+const ConfettiExplosion = ({ active }: { active: boolean }) => {
+  if (!active) return null;
+  const particles = Array.from({ length: 70 }, (_, i) => ({
+    id: i,
+    x: (Math.random() - 0.5) * 700,
+    y: (Math.random() - 0.5) * 700 - 150,
+    rotation: Math.random() * 720 - 360,
+    color: ['#10B981', '#34D399', '#84CC16', '#F59E0B', '#3B82F6', '#EF4444', '#EC4899', '#8B5CF6', '#A7F3D0', '#FBBF24'][i % 10],
+    size: 4 + Math.random() * 8,
+    shape: i % 3,
+  }));
+
+  return (
+    <div className="fixed inset-0 z-[60] pointer-events-none flex items-center justify-center">
+      {particles.map(p => (
+        <motion.div
+          key={p.id}
+          style={{
+            position: 'absolute',
+            width: p.shape === 2 ? p.size * 2.5 : p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            borderRadius: p.shape === 0 ? '50%' : '2px',
+          }}
+          initial={{ x: 0, y: 0, opacity: 1, rotate: 0, scale: 1 }}
+          animate={{ x: p.x, y: p.y, opacity: 0, rotate: p.rotation, scale: 0.2 }}
+          transition={{ duration: 1.5 + Math.random() * 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+        />
+      ))}
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   POWER BAR
    ══════════════════════════════════════════════════════════════════ */
 const PowerBar = ({ value, max = 100 }: { value: number; max?: number }) => {
   const pct = (value / max) * 100;
@@ -147,10 +282,10 @@ const PowerBar = ({ value, max = 100 }: { value: number; max?: number }) => {
     <div className="relative h-1.5 w-full rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
       <motion.div
         className="absolute inset-y-0 left-0 rounded-full"
-        style={{ background: `linear-gradient(90deg, ${color}, ${color}dd)`, boxShadow: `0 0 8px ${color}40` }}
+        style={{ background: `linear-gradient(90deg, ${color}, ${color}cc)`, boxShadow: `0 0 10px ${color}40` }}
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
-        transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
+        transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
       />
     </div>
   );
@@ -177,19 +312,29 @@ const AnimatedCounter = ({ value, duration = 1.5 }: { value: number; duration?: 
 };
 
 /* ══════════════════════════════════════════════════════════════════
+   RANK BADGE
+   ══════════════════════════════════════════════════════════════════ */
+const RankBadge = ({ rank }: { rank: number }) => {
+  if (rank === 0) return <span className="text-base">🥇</span>;
+  if (rank === 1) return <span className="text-base">🥈</span>;
+  if (rank === 2) return <span className="text-base">🥉</span>;
+  return <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.2)' }}>{rank + 1}</span>;
+};
+
+/* ══════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ══════════════════════════════════════════════════════════════════ */
 export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'arena'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'arena' | 'agents'>('dashboard');
 
   const [mintedAgents, setMintedAgents] = useState<MintedAgent[]>([
-    { id: 1, name: "Shadow Oracle", xHandle: "shadow_ai", wallet: "0x000", power: 83, wins: 12 },
-    { id: 2, name: "Void Weaver", xHandle: "void_ops", wallet: "0x001", power: 79, wins: 9 },
-    { id: 3, name: "Nexus Striker", xHandle: "nexus_defi", wallet: "0x002", power: 84, wins: 15 },
-    { id: 4, name: "Aether Knight", xHandle: "aether_net", wallet: "0x003", power: 76, wins: 8 },
-    { id: 5, name: "Eclipse Reaper", xHandle: "eclipse_dao", wallet: "0x004", power: 81, wins: 11 },
+    { id: 1, name: "Shadow Oracle", xHandle: "shadow_ai", wallet: "0x0000", power: 83, wins: 12 },
+    { id: 2, name: "Void Weaver", xHandle: "void_ops", wallet: "0x0001", power: 79, wins: 9 },
+    { id: 3, name: "Nexus Striker", xHandle: "nexus_defi", wallet: "0x0002", power: 84, wins: 15 },
+    { id: 4, name: "Aether Knight", xHandle: "aether_net", wallet: "0x0003", power: 76, wins: 8 },
+    { id: 5, name: "Eclipse Reaper", xHandle: "eclipse_dao", wallet: "0x0004", power: 81, wins: 11 },
   ]);
 
   const [battleLogs, setBattleLogs] = useState<BattleLog[]>([
@@ -198,6 +343,23 @@ export default function RitualAgentArena() {
     { id: 3, attacker: "Shadow Oracle", defender: "Aether Knight", winner: "Shadow Oracle", timestamp: Date.now() - 480000 },
   ]);
 
+  const [selectedAgent, setSelectedAgent] = useState<MintedAgent | null>(null);
+  const [isBattling, setIsBattling] = useState(false);
+  const [isBattleAnimating, setIsBattleAnimating] = useState(false);
+  const [battleResult, setBattleResult] = useState<{ text: string; type: 'win' | 'lose' | 'draw' } | null>(null);
+  const [opponent, setOpponent] = useState<MintedAgent | null>(null);
+
+  const [showMintModal, setShowMintModal] = useState(false);
+  const [mintName, setMintName] = useState('');
+  const [mintX, setMintX] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [agentPage, setAgentPage] = useState(0);
+  const [agentSearch, setAgentSearch] = useState('');
+  const [agentSort, setAgentSort] = useState<'wins' | 'power' | 'name'>('wins');
+
+  /* ─── localStorage ─── */
   useEffect(() => {
     const saved = localStorage.getItem("ritual_agents");
     if (saved) { try { setMintedAgents(JSON.parse(saved)); } catch (e) { } }
@@ -213,20 +375,45 @@ export default function RitualAgentArena() {
     if (battleLogs.length > 0) localStorage.setItem("ritual_battle_logs", JSON.stringify(battleLogs));
   }, [battleLogs]);
 
-  const [selectedAgent, setSelectedAgent] = useState<MintedAgent | null>(null);
-  const [isBattling, setIsBattling] = useState(false);
-  const [isBattleAnimating, setIsBattleAnimating] = useState(false);
-  const [battleResult, setBattleResult] = useState<{ text: string; type: 'win' | 'lose' | 'draw' } | null>(null);
-  const [opponent, setOpponent] = useState<MintedAgent | null>(null);
+  /* ─── COMPUTED ─── */
+  const myAgents = useMemo(
+    () => account ? mintedAgents.filter(a => a.wallet.toLowerCase() === account.toLowerCase()) : [],
+    [mintedAgents, account]
+  );
 
-  const [showMintModal, setShowMintModal] = useState(false);
-  const [mintName, setMintName] = useState('');
-  const [mintX, setMintX] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const totalAgents = mintedAgents.length;
+  const totalWins = mintedAgents.reduce((sum, a) => sum + a.wins, 0);
+  const avgPower = totalAgents > 0 ? Math.round(mintedAgents.reduce((sum, a) => sum + a.power, 0) / totalAgents) : 0;
+  const leaderboard = useMemo(() => [...mintedAgents].sort((a, b) => b.wins - a.wins), [mintedAgents]);
 
-  const ADMIN_X_HANDLES = ["ohmythalassa"];
-  const ADMIN_ADDRESSES = ["0x3883f0ddccc55ac112173bc67584952bf13b1a7d"];
+  // Paginated X handle list
+  const filteredAgents = useMemo(() => {
+    let agents = [...mintedAgents];
+    if (agentSearch) {
+      const q = agentSearch.toLowerCase();
+      agents = agents.filter(a =>
+        a.name.toLowerCase().includes(q) || a.xHandle.toLowerCase().includes(q)
+      );
+    }
+    agents.sort((a, b) => {
+      if (agentSort === 'wins') return b.wins - a.wins;
+      if (agentSort === 'power') return b.power - a.power;
+      return a.name.localeCompare(b.name);
+    });
+    return agents;
+  }, [mintedAgents, agentSearch, agentSort]);
 
+  const agentTotalPages = Math.max(1, Math.ceil(filteredAgents.length / 10));
+  const paginatedAgents = filteredAgents.slice(agentPage * 10, (agentPage + 1) * 10);
+
+  const timeAgo = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    return `${Math.floor(diff / 3600000)}h ago`;
+  };
+
+  /* ─── WALLET ─── */
   const connectWallet = async () => {
     if (!window.ethereum) return alert("Install MetaMask");
     const provider = new ethers.BrowserProvider(window.ethereum);
@@ -261,6 +448,7 @@ export default function RitualAgentArena() {
     }
   };
 
+  /* ─── MINT ─── */
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
     const isAdminByAddress = ADMIN_ADDRESSES.includes(account.toLowerCase());
@@ -287,13 +475,23 @@ export default function RitualAgentArena() {
       await tx.wait();
       const power = Math.floor(Math.random() * 16) + 80;
       const newAgent: MintedAgent = { id: mintedAgents.length + 1, name: mintName.trim(), xHandle: mintX.trim(), wallet: account, power, wins: 0 };
-      setMintedAgents([...mintedAgents, newAgent]);
+      setMintedAgents(prev => [...prev, newAgent]);
       alert("Agent minted successfully!");
       setShowMintModal(false);
     } catch (err) { console.error(err); alert("Mint failed"); }
   };
 
+  /* ─── ARENA ─── */
   const enterArena = (agent: MintedAgent) => {
+    // Own-agent check
+    if (account && agent.wallet.toLowerCase() !== account.toLowerCase()) {
+      alert("You can only battle with your own agent!");
+      return;
+    }
+    if (!account) {
+      alert("Connect your wallet first to battle!");
+      return;
+    }
     setSelectedAgent(agent);
     setBattleResult(null);
     setOpponent(null);
@@ -303,10 +501,17 @@ export default function RitualAgentArena() {
 
   const startBattle = async () => {
     if (!selectedAgent) return;
+    if (!account) { alert("Connect wallet first!"); return; }
+    if (selectedAgent.wallet.toLowerCase() !== account.toLowerCase()) {
+      alert("You can only battle with your own agent!");
+      return;
+    }
+
     setIsBattling(true);
     setIsBattleAnimating(true);
     setBattleResult(null);
 
+    // Opponent: any OTHER agent (not your own)
     const opponents = mintedAgents.filter(a => a.id !== selectedAgent.id);
     if (opponents.length === 0) {
       setBattleResult({ text: "No opponents available", type: 'draw' });
@@ -325,7 +530,13 @@ export default function RitualAgentArena() {
     let result: { text: string; type: 'win' | 'lose' | 'draw' };
     if (myPower > oppPower) {
       result = { text: `${selectedAgent.name} defeated ${opp.name}!`, type: 'win' };
-      setMintedAgents(mintedAgents.map(a => a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a));
+      // FIX: functional update to avoid stale closure
+      setMintedAgents(prev => prev.map(a =>
+        a.id === selectedAgent.id ? { ...a, wins: a.wins + 1 } : a
+      ));
+      setSelectedAgent(prev => prev ? { ...prev, wins: prev.wins + 1 } : null);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
     } else if (myPower < oppPower) {
       result = { text: `${opp.name} overpowered ${selectedAgent.name}`, type: 'lose' };
     } else {
@@ -345,25 +556,15 @@ export default function RitualAgentArena() {
     setIsBattling(false);
   };
 
-  const totalAgents = mintedAgents.length;
-  const totalWins = mintedAgents.reduce((sum, a) => sum + a.wins, 0);
-  const avgPower = totalAgents > 0 ? Math.round(mintedAgents.reduce((sum, a) => sum + a.power, 0) / totalAgents) : 0;
-  const leaderboard = [...mintedAgents].sort((a, b) => b.wins - a.wins).slice(0, 5);
-
-  const timeAgo = (ts: number) => {
-    const diff = Date.now() - ts;
-    if (diff < 60000) return 'just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    return `${Math.floor(diff / 3600000)}h ago`;
-  };
-
-  /* ─────────────── NAVBAR ─────────────── */
+  /* ══════════════════════════════════════════════════════════════════
+     NAVBAR
+     ══════════════════════════════════════════════════════════════════ */
   const Navbar = () => (
     <motion.nav
       className="sticky top-0 z-50"
       style={{
-        background: 'rgba(3,8,6,0.7)',
-        backdropFilter: 'blur(24px) saturate(1.2)',
+        background: 'rgba(2,5,4,0.75)',
+        backdropFilter: 'blur(24px) saturate(1.3)',
         borderBottom: '1px solid rgba(16,185,129,0.06)',
       }}
       initial={{ y: -80 }}
@@ -379,7 +580,7 @@ export default function RitualAgentArena() {
               background: 'linear-gradient(135deg, #10B981, #059669)',
               boxShadow: '0 0 20px rgba(16,185,129,0.2)',
             }}
-            animate={{ boxShadow: ['0 0 12px rgba(16,185,129,0.15)', '0 0 24px rgba(16,185,129,0.3)', '0 0 12px rgba(16,185,129,0.15)'] }}
+            animate={{ boxShadow: ['0 0 12px rgba(16,185,129,0.15)', '0 0 28px rgba(16,185,129,0.35)', '0 0 12px rgba(16,185,129,0.15)'] }}
             transition={{ duration: 3, repeat: Infinity }}
           >
             <Sword className="w-4 h-4 text-black" />
@@ -395,6 +596,7 @@ export default function RitualAgentArena() {
           {[
             { id: 'dashboard' as const, label: 'Dashboard', icon: Activity },
             { id: 'arena' as const, label: 'Arena', icon: Sword },
+            { id: 'agents' as const, label: 'Agents', icon: Users },
           ].map(tab => (
             <button
               key={tab.id}
@@ -424,7 +626,11 @@ export default function RitualAgentArena() {
           {account ? (
             <>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono" style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                <div className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                <motion.div
+                  className="w-1.5 h-1.5 rounded-full bg-[#10B981]"
+                  animate={{ opacity: [1, 0.4, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
                 {account.slice(0, 6)}...{account.slice(-4)}
               </div>
               <button onClick={disconnectWallet} className="p-2 rounded-lg transition-colors" style={{ color: 'rgba(255,255,255,0.3)' }}>
@@ -447,7 +653,9 @@ export default function RitualAgentArena() {
     </motion.nav>
   );
 
-  /* ─────────────── DASHBOARD VIEW ─────────────── */
+  /* ══════════════════════════════════════════════════════════════════
+     DASHBOARD VIEW
+     ══════════════════════════════════════════════════════════════════ */
   const DashboardView = () => (
     <motion.div
       initial={{ opacity: 0 }}
@@ -456,7 +664,7 @@ export default function RitualAgentArena() {
       transition={{ duration: 0.4 }}
       className="max-w-[1440px] mx-auto px-6 py-8"
     >
-      {/* Hero — compact, Linear-style */}
+      {/* Hero */}
       <motion.div
         className="text-center mb-12 pt-8"
         initial={{ opacity: 0, y: 30 }}
@@ -482,13 +690,18 @@ export default function RitualAgentArena() {
         >
           Where Agents
           <br />
-          <span style={{
-            background: 'linear-gradient(135deg, #10B981, #34D399, #84CC16)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
+          <motion.span
+            style={{
+              background: 'linear-gradient(135deg, #10B981, #34D399, #84CC16)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundSize: '200% 200%',
+            }}
+            animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+          >
             Prove Their Worth
-          </span>
+          </motion.span>
         </motion.h1>
 
         <motion.p
@@ -500,9 +713,17 @@ export default function RitualAgentArena() {
         >
           Mint. Battle. Ascend. On-chain combat on Ritual.
         </motion.p>
+
+        {/* Animated accent line */}
+        <motion.div
+          className="mx-auto mt-6 h-[1px] rounded-full"
+          style={{ background: 'linear-gradient(90deg, transparent, #10B981, transparent)', maxWidth: 200 }}
+          animate={{ opacity: [0.3, 0.8, 0.3], scaleX: [0.8, 1.2, 0.8] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        />
       </motion.div>
 
-      {/* Stats Row — Linear-style, ultra-compact */}
+      {/* Stats Row */}
       <motion.div
         className="grid grid-cols-4 gap-3 mb-10"
         initial={{ opacity: 0, y: 20 }}
@@ -517,26 +738,31 @@ export default function RitualAgentArena() {
         ].map((stat, i) => (
           <motion.div
             key={i}
-            className="rounded-xl p-5 group cursor-default"
+            className="rounded-xl p-5 group cursor-default relative overflow-hidden"
             style={{
               background: 'rgba(255,255,255,0.015)',
               border: '1px solid rgba(255,255,255,0.04)',
             }}
             whileHover={{
-              background: 'rgba(255,255,255,0.03)',
-              borderColor: `${stat.color}20`,
+              borderColor: `${stat.color}25`,
               y: -2,
             }}
             transition={{ duration: 0.2 }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <stat.icon className="w-3.5 h-3.5" style={{ color: stat.color }} />
-              <span className="text-[10px] font-medium tracking-[2px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                {stat.label}
-              </span>
-            </div>
-            <div className="text-4xl font-semibold tracking-[-2px]" style={{ color: '#f0f2f0' }}>
-              <AnimatedCounter value={stat.value} />
+            <motion.div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{ background: `radial-gradient(circle at 50% 0%, ${stat.color}08 0%, transparent 70%)` }}
+            />
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-3">
+                <stat.icon className="w-3.5 h-3.5" style={{ color: stat.color }} />
+                <span className="text-[10px] font-medium tracking-[2px] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  {stat.label}
+                </span>
+              </div>
+              <div className="text-4xl font-semibold tracking-[-2px]" style={{ color: '#f0f2f0' }}>
+                <AnimatedCounter value={stat.value} />
+              </div>
             </div>
           </motion.div>
         ))}
@@ -564,68 +790,85 @@ export default function RitualAgentArena() {
             </motion.button>
           </div>
 
-          {/* Agent Cards — Grid */}
+          {/* Agent Cards */}
           <div className="grid grid-cols-2 gap-3">
-            {mintedAgents.map((agent, i) => (
-              <motion.div
-                key={agent.id}
-                className="rounded-xl p-5 cursor-pointer group relative overflow-hidden"
-                style={{
-                  background: 'rgba(255,255,255,0.015)',
-                  border: '1px solid rgba(255,255,255,0.04)',
-                }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * i }}
-                whileHover={{
-                  borderColor: 'rgba(16,185,129,0.15)',
-                  y: -3,
-                }}
-                onClick={() => enterArena(agent)}
-              >
-                {/* Hover glow */}
+            {mintedAgents.map((agent, i) => {
+              const isOwn = account && agent.wallet.toLowerCase() === account.toLowerCase();
+              return (
                 <motion.div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  style={{ background: 'radial-gradient(circle at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 70%)' }}
-                />
+                  key={agent.id}
+                  className="rounded-xl p-5 group relative overflow-hidden"
+                  style={{
+                    background: 'rgba(255,255,255,0.015)',
+                    border: `1px solid ${isOwn ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)'}`,
+                    cursor: isOwn || !account ? 'pointer' : 'default',
+                  }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * i }}
+                  whileHover={isOwn || !account ? { borderColor: 'rgba(16,185,129,0.2)', y: -3 } : {}}
+                  onClick={() => {
+                    if (!account) { alert("Connect wallet first"); return; }
+                    if (isOwn) enterArena(agent);
+                    else alert("This is not your agent. You can only battle with your own agent.");
+                  }}
+                >
+                  {/* Hover glow */}
+                  <motion.div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    style={{ background: `radial-gradient(circle at 50% 0%, ${isOwn ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)'} 0%, transparent 70%)` }}
+                  />
 
-                <div className="relative">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-black"
-                        style={{ background: getAgentAvatar(agent.name) }}
-                      >
-                        {agent.name.split(' ').map(w => w[0]).join('')}
+                  <div className="relative">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-black"
+                          style={{ background: getAgentAvatar(agent.name) }}
+                        >
+                          {getInitials(agent.name)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                            {isOwn && (
+                              <span className="text-[8px] px-1.5 py-0.5 rounded-full font-medium" style={{ color: '#10B981', background: 'rgba(16,185,129,0.1)' }}>YOU</span>
+                            )}
+                          </div>
+                          <div className="text-[11px]" style={{ color: 'rgba(52,211,153,0.6)' }}>@{agent.xHandle}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-sm font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>{agent.name}</div>
-                        <div className="text-[11px]" style={{ color: 'rgba(52,211,153,0.6)' }}>@{agent.xHandle}</div>
+                      <div className="text-right">
+                        <div className="text-lg font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                        <div className="text-[9px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
-                      <div className="text-[9px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
+
+                    <PowerBar value={agent.power} />
+
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-1.5">
+                        <Trophy className="w-3 h-3" style={{ color: '#F59E0B' }} />
+                        <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{agent.wins} wins</span>
+                      </div>
+                      {isOwn ? (
+                        <motion.div
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ color: '#10B981', background: 'rgba(16,185,129,0.08)' }}
+                        >
+                          Battle <ChevronRight className="w-3 h-3" />
+                        </motion.div>
+                      ) : (
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-60 transition-opacity"
+                          style={{ color: 'rgba(255,255,255,0.3)' }}>
+                          <Lock className="w-3 h-3" />
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  <PowerBar value={agent.power} />
-
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center gap-1.5">
-                      <Trophy className="w-3 h-3" style={{ color: '#F59E0B' }} />
-                      <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{agent.wins} wins</span>
-                    </div>
-                    <motion.div
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ color: '#10B981', background: 'rgba(16,185,129,0.08)' }}
-                    >
-                      Battle <ChevronRight className="w-3 h-3" />
-                    </motion.div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
 
           {/* Top Agents Leaderboard */}
@@ -641,24 +884,21 @@ export default function RitualAgentArena() {
                 <h2 className="text-lg font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>Leaderboard</h2>
               </div>
               <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                {leaderboard.map((agent, i) => (
+                {leaderboard.slice(0, 5).map((agent, i) => (
                   <motion.div
                     key={agent.id}
-                    className="flex items-center gap-4 px-5 py-3.5 group cursor-pointer"
-                    style={{ borderBottom: i < leaderboard.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}
+                    className="flex items-center gap-4 px-5 py-3.5 group"
+                    style={{ borderBottom: i < Math.min(leaderboard.length, 5) - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}
                     whileHover={{ background: 'rgba(255,255,255,0.02)' }}
-                    onClick={() => enterArena(agent)}
                   >
                     <div className="w-6 text-center">
-                      {i === 0 ? <span className="text-sm">👑</span> : (
-                        <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.25)' }}>{i + 1}</span>
-                      )}
+                      <RankBadge rank={i} />
                     </div>
                     <div
                       className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-black"
                       style={{ background: getAgentAvatar(agent.name) }}
                     >
-                      {agent.name.split(' ').map(w => w[0]).join('')}
+                      {getInitials(agent.name)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate" style={{ color: '#f0f2f0' }}>{agent.name}</div>
@@ -721,7 +961,9 @@ export default function RitualAgentArena() {
     </motion.div>
   );
 
-  /* ─────────────── ARENA VIEW ─────────────── */
+  /* ══════════════════════════════════════════════════════════════════
+     ARENA VIEW — Only own agents can battle
+     ══════════════════════════════════════════════════════════════════ */
   const ArenaView = () => (
     <motion.div
       initial={{ opacity: 0 }}
@@ -731,38 +973,100 @@ export default function RitualAgentArena() {
       className="max-w-[1440px] mx-auto px-6 py-8"
     >
       {!selectedAgent ? (
-        /* Agent Selection */
+        /* Agent Selection — Only own agents */
         <div>
           <div className="text-center mb-10 pt-8">
             <h2 className="text-4xl font-semibold tracking-[-1.5px] mb-2" style={{ color: '#f0f2f0' }}>Choose Your Fighter</h2>
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Select an agent to enter the arena</p>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              {account ? `Select your agent to enter the arena (${myAgents.length} available)` : 'Connect wallet to start battling'}
+            </p>
           </div>
-          <div className="grid grid-cols-3 gap-4 max-w-3xl mx-auto">
-            {mintedAgents.map((agent, i) => (
+
+          {!account ? (
+            <div className="text-center py-16">
               <motion.div
-                key={agent.id}
-                className="rounded-xl p-6 cursor-pointer text-center"
-                style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.08 }}
-                whileHover={{ borderColor: 'rgba(16,185,129,0.2)', y: -4, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => enterArena(agent)}
+                className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}
+                animate={{ scale: [1, 1.05, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 3, repeat: Infinity }}
               >
-                <div
-                  className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-black mx-auto mb-3"
-                  style={{ background: getAgentAvatar(agent.name) }}
-                >
-                  {agent.name.split(' ').map(w => w[0]).join('')}
-                </div>
-                <div className="text-sm font-semibold mb-1" style={{ color: '#f0f2f0' }}>{agent.name}</div>
-                <div className="text-[10px] mb-3" style={{ color: 'rgba(52,211,153,0.5)' }}>@{agent.xHandle}</div>
-                <div className="text-2xl font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
-                <div className="text-[9px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
+                <Lock className="w-8 h-8" style={{ color: 'rgba(16,185,129,0.5)' }} />
               </motion.div>
-            ))}
-          </div>
+              <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.35)' }}>Connect your wallet to battle with your agents</p>
+              <motion.button
+                onClick={connectWallet}
+                className="px-6 py-3 rounded-xl text-sm font-bold text-black"
+                style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Connect Wallet
+              </motion.button>
+            </div>
+          ) : myAgents.length === 0 ? (
+            <div className="text-center py-16">
+              <motion.div
+                className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <Sparkles className="w-8 h-8" style={{ color: 'rgba(245,158,11,0.5)' }} />
+              </motion.div>
+              <p className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>You don&apos;t have any agents yet</p>
+              <p className="text-xs mb-6" style={{ color: 'rgba(255,255,255,0.2)' }}>Mint an agent to start battling</p>
+              <motion.button
+                onClick={openMintModal}
+                className="px-6 py-3 rounded-xl text-sm font-bold text-black flex items-center gap-2 mx-auto"
+                style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Plus className="w-4 h-4" /> Mint Agent
+              </motion.button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-4 max-w-3xl mx-auto">
+              {myAgents.map((agent, i) => (
+                <motion.div
+                  key={agent.id}
+                  className="rounded-xl p-6 cursor-pointer text-center relative overflow-hidden"
+                  style={{
+                    background: 'rgba(255,255,255,0.015)',
+                    border: '1px solid rgba(16,185,129,0.1)',
+                  }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.08 }}
+                  whileHover={{ borderColor: 'rgba(16,185,129,0.3)', y: -4, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => enterArena(agent)}
+                >
+                  {/* Glow */}
+                  <motion.div
+                    className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity"
+                    style={{ background: 'radial-gradient(circle at 50% 0%, rgba(16,185,129,0.08) 0%, transparent 70%)' }}
+                  />
+                  <div className="relative">
+                    <div
+                      className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-black mx-auto mb-3"
+                      style={{ background: getAgentAvatar(agent.name), boxShadow: `0 0 20px ${getAgentAvatar(agent.name)}25` }}
+                    >
+                      {getInitials(agent.name)}
+                    </div>
+                    <div className="text-sm font-semibold mb-1" style={{ color: '#f0f2f0' }}>{agent.name}</div>
+                    <div className="text-[10px] mb-3" style={{ color: 'rgba(52,211,153,0.5)' }}>@{agent.xHandle}</div>
+                    <div className="text-2xl font-semibold tracking-tight" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                    <div className="text-[9px] uppercase tracking-[1px] mb-2" style={{ color: 'rgba(255,255,255,0.2)' }}>POWER</div>
+                    <div className="flex items-center justify-center gap-1">
+                      <Trophy className="w-3 h-3" style={{ color: '#F59E0B' }} />
+                      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{agent.wins} wins</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         /* Battle Arena */
@@ -787,24 +1091,42 @@ export default function RitualAgentArena() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 25 }}
           >
+            {/* Animated border glow */}
+            {isBattleAnimating && (
+              <motion.div
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{ border: '1px solid rgba(16,185,129,0.3)' }}
+                animate={{ opacity: [0.3, 0.8, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
+            )}
+
             {/* Battle Header */}
             <div className="p-8 pb-6 text-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <div className="text-[10px] font-medium tracking-[3px] mb-4" style={{ color: 'rgba(16,185,129,0.5)' }}>
+              <motion.div
+                className="text-[10px] font-medium tracking-[3px] mb-4"
+                style={{ color: 'rgba(16,185,129,0.5)' }}
+                animate={isBattleAnimating ? { color: ['rgba(16,185,129,0.5)', 'rgba(16,185,129,1)', 'rgba(16,185,129,0.5)'] } : {}}
+                transition={{ duration: 1.2, repeat: Infinity }}
+              >
                 ⚡ ARENA MODE
-              </div>
+              </motion.div>
 
               {/* Fighters */}
               <div className="flex items-center justify-center gap-8">
                 {/* You */}
                 <motion.div className="text-center" initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
-                  <div
+                  <motion.div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-black mx-auto mb-2"
                     style={{ background: getAgentAvatar(selectedAgent.name), boxShadow: `0 0 25px ${getAgentAvatar(selectedAgent.name)}30` }}
+                    animate={isBattleAnimating ? { scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] } : {}}
+                    transition={{ duration: 0.5, repeat: isBattleAnimating ? Infinity : 0 }}
                   >
-                    {selectedAgent.name.split(' ').map(w => w[0]).join('')}
-                  </div>
+                    {getInitials(selectedAgent.name)}
+                  </motion.div>
                   <div className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{selectedAgent.name}</div>
                   <div className="text-xs mt-1" style={{ color: getPowerColor(selectedAgent.power) }}>Power {selectedAgent.power}</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: 'rgba(245,158,11,0.6)' }}>{selectedAgent.wins} wins</div>
                 </motion.div>
 
                 {/* VS */}
@@ -812,9 +1134,9 @@ export default function RitualAgentArena() {
                   className="text-3xl font-bold"
                   style={{ color: '#10B981' }}
                   animate={isBattleAnimating ? {
-                    scale: [1, 1.4, 1],
-                    rotate: [0, 10, -10, 0],
-                    textShadow: ['0 0 0px rgba(16,185,129,0)', '0 0 20px rgba(16,185,129,0.5)', '0 0 0px rgba(16,185,129,0)'],
+                    scale: [1, 1.5, 1],
+                    rotate: [0, 12, -12, 0],
+                    textShadow: ['0 0 0px rgba(16,185,129,0)', '0 0 25px rgba(16,185,129,0.6)', '0 0 0px rgba(16,185,129,0)'],
                   } : {}}
                   transition={{ duration: 0.6, repeat: isBattleAnimating ? Infinity : 0 }}
                 >
@@ -825,20 +1147,28 @@ export default function RitualAgentArena() {
                 <motion.div className="text-center" initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
                   {opponent ? (
                     <>
-                      <div
+                      <motion.div
                         className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-black mx-auto mb-2"
                         style={{ background: getAgentAvatar(opponent.name), boxShadow: `0 0 25px ${getAgentAvatar(opponent.name)}30` }}
+                        animate={isBattleAnimating ? { scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] } : {}}
+                        transition={{ duration: 0.5, repeat: isBattleAnimating ? Infinity : 0, delay: 0.25 }}
                       >
-                        {opponent.name.split(' ').map(w => w[0]).join('')}
-                      </div>
+                        {getInitials(opponent.name)}
+                      </motion.div>
                       <div className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{opponent.name}</div>
                       <div className="text-xs mt-1" style={{ color: getPowerColor(opponent.power) }}>Power {opponent.power}</div>
+                      <div className="text-[10px] mt-0.5" style={{ color: 'rgba(245,158,11,0.6)' }}>{opponent.wins} wins</div>
                     </>
                   ) : (
                     <>
-                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                      <motion.div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-2"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}
+                        animate={{ opacity: [0.4, 0.8, 0.4] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
                         <span className="text-2xl">?</span>
-                      </div>
+                      </motion.div>
                       <div className="text-sm" style={{ color: 'rgba(255,255,255,0.2)' }}>???</div>
                     </>
                   )}
@@ -860,15 +1190,16 @@ export default function RitualAgentArena() {
                     animate={{ opacity: [0.4, 1, 0.4] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                   >
-                    BATTLE IN PROGRESS
+                    ⚔️ BATTLE IN PROGRESS
                   </motion.div>
-                  <div className="flex justify-center gap-1 mt-3">
-                    {[0, 1, 2].map(i => (
+                  <div className="flex justify-center gap-1.5 mt-3">
+                    {[0, 1, 2, 3, 4].map(i => (
                       <motion.div
                         key={i}
-                        className="w-1.5 h-1.5 rounded-full bg-[#10B981]"
-                        animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
-                        transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: i % 2 === 0 ? '#10B981' : '#84CC16' }}
+                        animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.3, 0.8] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
                       />
                     ))}
                   </div>
@@ -898,15 +1229,34 @@ export default function RitualAgentArena() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                 >
-                  <div className="text-4xl mb-3">
+                  <motion.div
+                    className="text-5xl mb-4"
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 15, delay: 0.1 }}
+                  >
                     {battleResult.type === 'win' ? '⚡' : battleResult.type === 'lose' ? '💀' : '🤝'}
-                  </div>
-                  <div className="text-xl font-semibold mb-2" style={{
-                    color: battleResult.type === 'win' ? '#10B981' : battleResult.type === 'lose' ? '#EF4444' : '#F59E0B'
-                  }}>
-                    {battleResult.type === 'win' ? 'VICTORY' : battleResult.type === 'lose' ? 'DEFEAT' : 'DRAW'}
-                  </div>
-                  <div className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.4)' }}>{battleResult.text}</div>
+                  </motion.div>
+                  <motion.div
+                    className="text-2xl font-bold mb-2 tracking-tight"
+                    style={{
+                      color: battleResult.type === 'win' ? '#10B981' : battleResult.type === 'lose' ? '#EF4444' : '#F59E0B',
+                    }}
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    {battleResult.type === 'win' ? 'VICTORY!' : battleResult.type === 'lose' ? 'DEFEATED' : 'DRAW'}
+                  </motion.div>
+                  <motion.div
+                    className="text-sm mb-6"
+                    style={{ color: 'rgba(255,255,255,0.4)' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    {battleResult.text}
+                  </motion.div>
 
                   <div className="flex gap-3 justify-center">
                     <motion.button
@@ -935,7 +1285,217 @@ export default function RitualAgentArena() {
     </motion.div>
   );
 
-  /* ─────────────── MINT MODAL ─────────────── */
+  /* ══════════════════════════════════════════════════════════════════
+     AGENTS VIEW — Paginated X Handle List (10 per page)
+     ══════════════════════════════════════════════════════════════════ */
+  const AgentsView = () => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="max-w-[900px] mx-auto px-6 py-8"
+    >
+      {/* Header */}
+      <motion.div
+        className="mb-8 pt-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-3xl font-semibold tracking-[-1px]" style={{ color: '#f0f2f0' }}>All Agents</h1>
+          <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full" style={{ color: '#34D399', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.1)' }}>
+            {filteredAgents.length} total
+          </span>
+        </div>
+        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Browse all registered AI agents and their X handles</p>
+      </motion.div>
+
+      {/* Search + Sort */}
+      <motion.div
+        className="flex items-center gap-3 mb-6"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div
+          className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <Search className="w-3.5 h-3.5" style={{ color: 'rgba(255,255,255,0.25)' }} />
+          <input
+            type="text"
+            value={agentSearch}
+            onChange={(e) => { setAgentSearch(e.target.value); setAgentPage(0); }}
+            placeholder="Search by name or X handle..."
+            className="flex-1 bg-transparent text-sm focus:outline-none"
+            style={{ color: '#f0f2f0' }}
+          />
+          {agentSearch && (
+            <button onClick={() => { setAgentSearch(''); setAgentPage(0); }} style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          {[
+            { id: 'wins' as const, label: 'Wins', icon: Trophy },
+            { id: 'power' as const, label: 'Power', icon: Zap },
+            { id: 'name' as const, label: 'A-Z', icon: ArrowUpDown },
+          ].map(sort => (
+            <button
+              key={sort.id}
+              onClick={() => { setAgentSort(sort.id); setAgentPage(0); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all"
+              style={{
+                color: agentSort === sort.id ? '#f0f2f0' : 'rgba(255,255,255,0.3)',
+                background: agentSort === sort.id ? 'rgba(16,185,129,0.1)' : 'transparent',
+              }}
+            >
+              <sort.icon className="w-3 h-3" />
+              {sort.label}
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Agent List — 10 per page */}
+      <motion.div
+        className="rounded-xl overflow-hidden mb-6"
+        style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        {/* Header row */}
+        <div
+          className="grid grid-cols-[40px_44px_1fr_140px_80px_70px] items-center gap-3 px-5 py-2.5"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}>#</span>
+          <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}></span>
+          <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}>Agent</span>
+          <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}>X Handle</span>
+          <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}>Power</span>
+          <span className="text-[9px] font-medium tracking-[1.5px] uppercase text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>Wins</span>
+        </div>
+
+        {paginatedAgents.length === 0 ? (
+          <div className="py-12 text-center">
+            <Search className="w-6 h-6 mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.1)' }} />
+            <div className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>No agents found</div>
+          </div>
+        ) : (
+          paginatedAgents.map((agent, i) => {
+            const globalRank = agentPage * 10 + i;
+            const isOwn = account && agent.wallet.toLowerCase() === account.toLowerCase();
+            return (
+              <motion.div
+                key={agent.id}
+                className="grid grid-cols-[40px_44px_1fr_140px_80px_70px] items-center gap-3 px-5 py-3 group"
+                style={{
+                  borderBottom: i < paginatedAgents.length - 1 ? '1px solid rgba(255,255,255,0.025)' : 'none',
+                  background: isOwn ? 'rgba(16,185,129,0.02)' : 'transparent',
+                }}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.03 }}
+                whileHover={{ background: 'rgba(255,255,255,0.025)' }}
+              >
+                <div className="text-center">
+                  <RankBadge rank={globalRank} />
+                </div>
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-black"
+                  style={{ background: getAgentAvatar(agent.name) }}
+                >
+                  {getInitials(agent.name)}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium truncate" style={{ color: '#f0f2f0' }}>{agent.name}</span>
+                    {isOwn && (
+                      <span className="text-[7px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0" style={{ color: '#10B981', background: 'rgba(16,185,129,0.1)' }}>YOU</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-[12px] font-mono truncate" style={{ color: 'rgba(52,211,153,0.6)' }}>@{agent.xHandle}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-semibold" style={{ color: getPowerColor(agent.power) }}>{agent.power}</div>
+                  <div className="flex-1"><PowerBar value={agent.power} /></div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Trophy className="w-3 h-3" style={{ color: '#F59E0B' }} />
+                    <span className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{agent.wins}</span>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </motion.div>
+
+      {/* Pagination */}
+      {agentTotalPages > 1 && (
+        <motion.div
+          className="flex items-center justify-between"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            Showing {agentPage * 10 + 1}–{Math.min((agentPage + 1) * 10, filteredAgents.length)} of {filteredAgents.length}
+          </div>
+          <div className="flex items-center gap-2">
+            <motion.button
+              onClick={() => setAgentPage(p => Math.max(0, p - 1))}
+              disabled={agentPage === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+              whileHover={{ borderColor: 'rgba(16,185,129,0.15)' }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <ChevronLeft className="w-3 h-3" /> Prev
+            </motion.button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: agentTotalPages }, (_, i) => (
+                <motion.button
+                  key={i}
+                  onClick={() => setAgentPage(i)}
+                  className="w-8 h-8 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    color: agentPage === i ? '#f0f2f0' : 'rgba(255,255,255,0.3)',
+                    background: agentPage === i ? 'rgba(16,185,129,0.15)' : 'transparent',
+                    border: agentPage === i ? '1px solid rgba(16,185,129,0.2)' : '1px solid transparent',
+                  }}
+                  whileHover={{ background: 'rgba(255,255,255,0.05)' }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {i + 1}
+                </motion.button>
+              ))}
+            </div>
+            <motion.button
+              onClick={() => setAgentPage(p => Math.min(agentTotalPages - 1, p + 1))}
+              disabled={agentPage === agentTotalPages - 1}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+              whileHover={{ borderColor: 'rgba(16,185,129,0.15)' }}
+              whileTap={{ scale: 0.97 }}
+            >
+              Next <ChevronRight className="w-3 h-3" />
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  );
+
+  /* ══════════════════════════════════════════════════════════════════
+     MINT MODAL
+     ══════════════════════════════════════════════════════════════════ */
   const MintModal = () => (
     <AnimatePresence>
       {showMintModal && (
@@ -1055,14 +1615,19 @@ export default function RitualAgentArena() {
     </AnimatePresence>
   );
 
-  /* ─────────────── RENDER ─────────────── */
+  /* ══════════════════════════════════════════════════════════════════
+     RENDER
+     ══════════════════════════════════════════════════════════════════ */
   return (
     <div className="min-h-screen" style={{ color: '#f0f2f0' }}>
-      <NeuralBackground />
+      <AnimatedBackground />
+      <ConfettiExplosion active={showConfetti} />
       <Navbar />
 
       <AnimatePresence mode="wait">
-        {activeView === 'dashboard' ? <DashboardView key="dashboard" /> : <ArenaView key="arena" />}
+        {activeView === 'dashboard' && <DashboardView key="dashboard" />}
+        {activeView === 'arena' && <ArenaView key="arena" />}
+        {activeView === 'agents' && <AgentsView key="agents" />}
       </AnimatePresence>
 
       <MintModal />
