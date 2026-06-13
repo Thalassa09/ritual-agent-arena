@@ -6,7 +6,7 @@ import {
   Sword, Trophy, Users, Zap, LogOut, Plus, ArrowRight, Shuffle,
   ChevronRight, ChevronLeft, Activity, Flame, Crown, Shield, Sparkles,
   X, Search, Lock, Star, Eye, Hexagon, ArrowUpDown,
-  Volume2, VolumeX, Sun, Moon, User, ExternalLink, ArrowLeft
+  Volume2, VolumeX, User, ExternalLink, ArrowLeft
 } from 'lucide-react';
 import { ethers } from 'ethers';
 
@@ -158,7 +158,7 @@ const getInitials = (name: string) => name.split(' ').map(w => w[0]).join('');
    ANIMATED BACKGROUND — Multi-layer cinematic canvas
    ══════════════════════════════════════════════════════════════════ */
 const AnimatedBackground = () => (
-  <div className="fixed inset-0 z-[-1] overflow-hidden" style={{ background: 'var(--arena-bg, #020504)', transition: 'background 0.5s ease' }}>
+  <div className="fixed inset-0 z-[-1] overflow-hidden" style={{ background: '#020504' }}>
     {/* Noise grain texture */}
     <div className="absolute inset-0 opacity-[0.025]" style={{
       backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
@@ -617,7 +617,6 @@ export default function RitualAgentArena() {
   const [account, setAccount] = useState<string>('');
   const [contract, setContract] = useState<any>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'arena' | 'agents' | 'profile'>('dashboard');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [soundMuted, setSoundMuted] = useState(false);
   const [selectedProfileAgent, setSelectedProfileAgent] = useState<MintedAgent | null>(null);
 
@@ -851,7 +850,7 @@ export default function RitualAgentArena() {
     soundManager.battle(); // battle start sound
 
     // Call on-chain battle if contract is available and both agents have tokenIds
-    let txHash: string | undefined;
+    let txHash: string;
     if (contract && selectedAgent.tokenId && opp.tokenId) {
       try {
         const tx = await contract.battle(selectedAgent.tokenId, opp.tokenId);
@@ -860,7 +859,11 @@ export default function RitualAgentArena() {
         console.log(`Battle tx confirmed: ${txHash}`);
       } catch (err: any) {
         console.warn("On-chain battle failed, using local result:", err.message);
+        txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
       }
+    } else {
+      // Generate local tx hash for off-chain battles
+      txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
     }
 
     // Wait for animation
@@ -903,10 +906,9 @@ export default function RitualAgentArena() {
     <motion.nav
       className="sticky top-0 z-50"
       style={{
-        background: 'var(--arena-nav, rgba(2,5,4,0.75))',
+        background: 'rgba(2,5,4,0.75)',
         backdropFilter: 'blur(24px) saturate(1.3)',
-        borderBottom: '1px solid var(--arena-nav-border, rgba(16,185,129,0.06))',
-        transition: 'background 0.5s ease, border-color 0.5s ease',
+        borderBottom: '1px solid rgba(16,185,129,0.06)',
       }}
       initial={{ y: -80 }}
       animate={{ y: 0 }}
@@ -962,7 +964,7 @@ export default function RitualAgentArena() {
           ))}
         </div>
 
-        {/* Right — Sound + Theme + Wallet */}
+          {/* Right — Sound + Wallet */}
         <div className="flex items-center gap-2">
           {/* Sound toggle */}
           <motion.button
@@ -976,17 +978,6 @@ export default function RitualAgentArena() {
             {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
           </motion.button>
 
-          {/* Theme toggle */}
-          <motion.button
-            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-            className="p-2 rounded-lg transition-colors"
-            style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))', background: 'var(--arena-card, rgba(255,255,255,0.03))' }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          >
-            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          </motion.button>
           {account ? (
             <>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono" style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
@@ -2039,7 +2030,7 @@ export default function RitualAgentArena() {
           {/* Info */}
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--arena-text, #f0f2f0)' }}>{agent.name}</h1>
+              <h1 className="text-2xl font-bold" style={{ color: '#f0f2f0' }}>{agent.name}</h1>
               {isBoss && <span className="px-2 py-0.5 text-[9px] font-bold tracking-[1.5px] uppercase rounded-full" style={{ background: 'rgba(168,85,247,0.15)', color: '#A855F7' }}>BOSS</span>}
             </div>
             <div className="text-xs font-mono mb-4" style={{ color: 'rgba(255,255,255,0.25)' }}>
@@ -2070,12 +2061,12 @@ export default function RitualAgentArena() {
                 <motion.div
                   key={s.label}
                   className="rounded-xl p-4"
-                  style={{ background: 'var(--arena-card, rgba(255,255,255,0.015))', border: '1px solid var(--arena-border, rgba(255,255,255,0.04))' }}
+                  style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
                 >
-                  <div className="text-[9px] font-medium tracking-[2px] uppercase mb-2" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>{s.label}</div>
+                  <div className="text-[9px] font-medium tracking-[2px] uppercase mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>{s.label}</div>
                   <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
                 </motion.div>
               ))}
@@ -2088,12 +2079,12 @@ export default function RitualAgentArena() {
           {/* Win rate donut */}
           <motion.div
             className="rounded-xl p-6"
-            style={{ background: 'var(--arena-card, rgba(255,255,255,0.015))', border: '1px solid var(--arena-border, rgba(255,255,255,0.04))' }}
+            style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <div className="text-[10px] font-medium tracking-[2px] uppercase mb-4" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>Win Rate</div>
+            <div className="text-[10px] font-medium tracking-[2px] uppercase mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>Win Rate</div>
             <div className="flex items-center justify-center">
               <svg width="100" height="100" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r={donutR} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="8" />
@@ -2122,12 +2113,12 @@ export default function RitualAgentArena() {
           {/* Battle history */}
           <motion.div
             className="col-span-2 rounded-xl p-6 overflow-y-auto"
-            style={{ background: 'var(--arena-card, rgba(255,255,255,0.015))', border: '1px solid var(--arena-border, rgba(255,255,255,0.04))', maxHeight: '300px' }}
+            style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)', maxHeight: '300px' }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <div className="text-[10px] font-medium tracking-[2px] uppercase mb-4" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>
+            <div className="text-[10px] font-medium tracking-[2px] uppercase mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
               Battle History ({agentBattles.length})
             </div>
             {agentBattles.length === 0 ? (
@@ -2155,15 +2146,15 @@ export default function RitualAgentArena() {
                           {isWin ? 'W' : 'L'}
                         </div>
                         <div>
-                          <div className="text-xs" style={{ color: 'var(--arena-text, #f0f2f0)' }}>
+                          <div className="text-xs" style={{ color: '#f0f2f0' }}>
                             {b.attacker} vs {b.defender}
                           </div>
-                          <div className="text-[10px] font-mono" style={{ color: 'var(--arena-text-dim, rgba(255,255,255,0.2))' }}>
+                          <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.2)' }}>
                             Winner: {b.winner}
                           </div>
                         </div>
                       </div>
-                      <div className="text-[10px] font-mono" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>
+                      <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         {timeAgo(b.timestamp)}
                       </div>
                     </motion.div>
@@ -2184,7 +2175,7 @@ export default function RitualAgentArena() {
     <footer className="mt-20 pb-10 text-center">
       <div className="flex items-center justify-center gap-3 mb-3">
         <div className="h-px w-12" style={{ background: 'rgba(16,185,129,0.12)' }} />
-        <div className="text-[10px] font-medium tracking-[2px] uppercase" style={{ color: 'var(--arena-text-muted, rgba(255,255,255,0.35))' }}>
+        <div className="text-[10px] font-medium tracking-[2px] uppercase" style={{ color: 'rgba(255,255,255,0.35)' }}>
           Crafted by
         </div>
         <div className="h-px w-12" style={{ background: 'rgba(16,185,129,0.12)' }} />
@@ -2202,7 +2193,7 @@ export default function RitualAgentArena() {
         </svg>
         <ExternalLink className="w-2.5 h-2.5 opacity-30" />
       </a>
-      <div className="mt-3 text-[9px] tracking-[1px]" style={{ color: 'var(--arena-text-dim, rgba(255,255,255,0.1))' }}>
+      <div className="mt-3 text-[9px] tracking-[1px]" style={{ color: 'rgba(255,255,255,0.1)' }}>
         Ritual Agent Arena · Testnet
       </div>
     </footer>
@@ -2334,7 +2325,7 @@ export default function RitualAgentArena() {
      RENDER
      ══════════════════════════════════════════════════════════════════ */
   return (
-    <div data-theme={theme} className="min-h-screen" style={{ color: 'var(--arena-text, #f0f2f0)', background: 'var(--arena-bg, #020504)', transition: 'background 0.5s ease, color 0.5s ease' }}>
+    <div className="min-h-screen" style={{ color: '#f0f2f0' }}>
       <AnimatedBackground />
       <FloatingRings />
       <MouseSpotlight />

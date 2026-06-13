@@ -12,43 +12,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* ═══ Arena Theme Variables ═══ */
-[data-theme="dark"] {
-  --arena-bg: #020504;
-  --arena-card: rgba(255,255,255,0.015);
-  --arena-card-hover: rgba(255,255,255,0.025);
-  --arena-border: rgba(255,255,255,0.04);
-  --arena-border-hover: rgba(255,255,255,0.08);
-  --arena-text: #f0f2f0;
-  --arena-text-muted: rgba(255,255,255,0.35);
-  --arena-text-dim: rgba(255,255,255,0.2);
-  --arena-text-ghost: rgba(255,255,255,0.1);
-  --arena-nav: rgba(2,5,4,0.75);
-  --arena-nav-border: rgba(16,185,129,0.06);
-  --arena-input: rgba(255,255,255,0.03);
-  --arena-input-border: rgba(255,255,255,0.06);
-  --arena-modal: #0a1210;
-  --arena-separator: rgba(255,255,255,0.03);
-}
-
-[data-theme="light"] {
-  --arena-bg: #f0f5f3;
-  --arena-card: rgba(16,185,129,0.04);
-  --arena-card-hover: rgba(16,185,129,0.08);
-  --arena-border: rgba(16,185,129,0.1);
-  --arena-border-hover: rgba(16,185,129,0.18);
-  --arena-text: #0a1210;
-  --arena-text-muted: rgba(10,18,16,0.55);
-  --arena-text-dim: rgba(10,18,16,0.3);
-  --arena-text-ghost: rgba(10,18,16,0.12);
-  --arena-nav: rgba(240,245,243,0.92);
-  --arena-nav-border: rgba(16,185,129,0.12);
-  --arena-input: rgba(16,185,129,0.05);
-  --arena-input-border: rgba(16,185,129,0.12);
-  --arena-modal: #e8f0ec;
-  --arena-separator: rgba(16,185,129,0.06);
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
