@@ -166,6 +166,7 @@ export default function RitualAgentArena() {
     { id: 3, name: "Nexus Striker", xHandle: "", wallet: "0x000", power: 84, wins: 15 },
     { id: 4, name: "Aether Knight", xHandle: "", wallet: "0x000", power: 76, wins: 8 },
     { id: 5, name: "Eclipse Reaper", xHandle: "", wallet: "0x000", power: 81, wins: 11 },
+  ]);
 
   // Persistence with localStorage
   useEffect(() => {
