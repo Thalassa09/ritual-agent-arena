@@ -765,14 +765,9 @@ export default function RitualAgentArena() {
   /* ─── MINT ─── */
   const openMintModal = () => {
     if (!contract) return alert("Connect wallet first");
-    const isAdminByAddress = ADMIN_ADDRESSES.includes(account.toLowerCase());
-    const isAdminByX = mintedAgents.some(a =>
-      ADMIN_X_HANDLES.includes(a.xHandle.toLowerCase()) && a.wallet.toLowerCase() === account.toLowerCase()
-    );
-    if (!isAdminByAddress && !isAdminByX) {
-      const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
-      if (alreadyMinted) { alert("This wallet has already minted an agent. 1 wallet = 1 agent."); return; }
-    }
+    // 1 wallet = 1 agent — no exception, even for admins
+    const alreadyMinted = mintedAgents.find(a => a.wallet.toLowerCase() === account.toLowerCase());
+    if (alreadyMinted) { alert("This wallet has already minted an agent. 1 wallet = 1 agent."); return; }
     setShowMintModal(true);
     setMintName(''); setMintX(''); setErrorMsg('');
     // Clear refs after modal mounts
