@@ -846,14 +846,14 @@ export default function RitualAgentArena() {
 
     soundManager.battle(); // battle start sound
 
-    // On-chain battle — mandatory for all battles
-    let txHash: string;
+    // On-chain battle — mandatory, no fallback
     if (!contract) {
       alert("Connect wallet to battle on-chain!");
       setIsBattling(false); setIsBattleAnimating(false);
       return;
     }
 
+    let txHash: string;
     try {
       const tx = await contract.battle(selectedAgent.tokenId || 0, opponent.tokenId || 0);
       const receipt = await tx.wait();
@@ -861,8 +861,9 @@ export default function RitualAgentArena() {
       console.log(`Battle tx confirmed: ${txHash}`);
     } catch (err: any) {
       console.error("On-chain battle failed:", err.message);
-      // Generate local tx hash as fallback so battle still records
-      txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      alert(`Battle failed: ${err.message}`);
+      setIsBattling(false); setIsBattleAnimating(false);
+      return;
     }
 
     // Wait for animation
