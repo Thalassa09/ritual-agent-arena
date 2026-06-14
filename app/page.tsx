@@ -18,7 +18,7 @@ declare global {
 
 const RITUAL_RPC = 'https://rpc.ritualfoundation.org';
 const RITUAL_CHAIN_ID = 1979;
-const CONTRACT_ADDRESS = '0x56351488B227BeD77074BA29Fc529464De76030C';
+const CONTRACT_ADDRESS = '0xf51F73582FfA5640679AedbEc80c7C9a779F8148';
 
 const ABI = [
   "function mintAgent(string name, uint256 power) external returns (uint256)",

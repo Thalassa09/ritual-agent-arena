@@ -202,13 +202,13 @@ contract RitualAgentArena {
         if (s.amount == 0 || s.lastClaimTime == 0) return 0;
         
         uint256 elapsed = block.timestamp - s.lastClaimTime;
-        uint256 days = elapsed / 1 days;
+        uint256 elapsedDays = elapsed / 1 days;
         
         // Scale power by stake amount: 0.01 ETH = 10 power/day, 0.1 ETH = 100 power/day (capped)
         uint256 stakeMultiple = s.amount / minStakeAmount; // 1x per 0.01 ETH
         if (stakeMultiple > 10) stakeMultiple = 10; // Cap at 10x (0.1 ETH)
         
-        return days * dailyPowerReward * stakeMultiple;
+        return elapsedDays * dailyPowerReward * stakeMultiple;
     }
 
     function getAgent(uint256 agentId) external view returns (Agent memory) {
