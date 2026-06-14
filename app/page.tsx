@@ -1184,6 +1184,8 @@ export default function RitualAgentArena() {
               )}
             </button>
           ))}
+          {/* Staking button — next to Agents */}
+          {account && <StakingModal />}
         </div>
 
           {/* Right — Sound + Wallet */}
@@ -1199,9 +1201,6 @@ export default function RitualAgentArena() {
           >
             {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
           </motion.button>
-
-          {/* Staking button */}
-          {account && <StakingModal />}
 
           {account ? (
             <>
@@ -1628,15 +1627,17 @@ export default function RitualAgentArena() {
                         ⛓️ ON-CHAIN
                       </span>
                     )}
-                    <motion.button
-                      onClick={(e) => { e.stopPropagation(); openShareCard(log); }}
-                      className="ml-auto text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ color: '#60A5FA', background: 'rgba(59,130,246,0.08)' }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Share
-                    </motion.button>
+                    {account && mintedAgents.some(a => a.wallet.toLowerCase() === account.toLowerCase() && (a.name === log.attacker || a.name === log.defender)) && (
+                      <motion.button
+                        onClick={(e) => { e.stopPropagation(); openShareCard(log); }}
+                        className="ml-auto text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ color: '#60A5FA', background: 'rgba(59,130,246,0.08)' }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Share
+                      </motion.button>
+                    )}
                   </div>
                 </motion.div>
               ))
