@@ -27,7 +27,14 @@ const ABI = [
   "function agents(uint256 agentId) external view returns (uint256 id, string name, uint256 power, uint256 wins, uint256 rating, address owner)",
   "event BattleResult(uint256 indexed winnerId, uint256 indexed loserId, uint256 reward)",
   "event PowerIncreased(uint256 indexed agentId, uint256 oldPower, uint256 newPower)",
-  "event AgentMinted(uint256 indexed id, address indexed owner, string name, uint256 power)"
+  "event AgentMinted(uint256 indexed id, address indexed owner, string name, uint256 power)",
+  "function stake() external payable",
+  "function unstake() external",
+  "function claimPower() external",
+  "function getStakeInfo(address user) external view returns (uint256 amount, uint256 startTime, uint256 lastClaimTime, uint256 totalClaimed, uint256 pendingPower, uint256 daysStaked)",
+  "event Staked(address indexed user, uint256 amount)",
+  "event Unstaked(address indexed user, uint256 amount)",
+  "event PowerClaimed(address indexed user, uint256 agentId, uint256 powerGained)"
 ];
 
 interface MintedAgent {
@@ -113,6 +120,62 @@ const createSoundManager = () => {
     click: () => playTone(880, 0.04, 'sine', 0.08),
     mint: () => {
       [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => setTimeout(() => playTone(f, 0.3, 'sine', 0.08), i * 80));
+    },
+    // Ambient arena hum — low frequency oscillation
+    ambient: () => {
+      if (muted) return;
+      try {
+        const c = getCtx();
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(55, c.currentTime);
+        gain.gain.setValueAtTime(0.015, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 4);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(); osc.stop(c.currentTime + 4);
+      } catch {}
+    },
+    // Power up — ascending sweep
+    powerup: () => {
+      if (muted) return;
+      try {
+        const c = getCtx();
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(200, c.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, c.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.1, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.4);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(); osc.stop(c.currentTime + 0.4);
+      } catch {}
+    },
+    // Stake — deep resonant chord
+    stake: () => {
+      if (muted) return;
+      [110, 164.81, 220].forEach((f, i) =>
+        setTimeout(() => playTone(f, 1.2, 'sine', 0.06), i * 100)
+      );
+    },
+    // Unstake — descending tones
+    unstake: () => {
+      if (muted) return;
+      [220, 164.81, 110].forEach((f, i) =>
+        setTimeout(() => playTone(f, 0.8, 'triangle', 0.05), i * 120)
+      );
+    },
+    // Compare — quick double blip
+    compare: () => {
+      playTone(660, 0.06, 'sine', 0.08);
+      setTimeout(() => playTone(880, 0.06, 'sine', 0.08), 80);
+    },
+    // Share — sparkle
+    share: () => {
+      [880, 1108.73, 1318.51].forEach((f, i) =>
+        setTimeout(() => playTone(f, 0.15, 'sine', 0.06), i * 60)
+      );
     },
     toggleMute: () => { muted = !muted; return muted; },
     isMuted: () => muted,
@@ -659,6 +722,22 @@ export default function RitualAgentArena() {
   const [agentSearch, setAgentSearch] = useState('');
   const [agentSort, setAgentSort] = useState<'wins' | 'power' | 'name'>('wins');
 
+  // ═══ NEW: Comparison Modal State ═══
+  const [showComparison, setShowComparison] = useState(false);
+  const [compareAgentA, setCompareAgentA] = useState<MintedAgent | null>(null);
+  const [compareAgentB, setCompareAgentB] = useState<MintedAgent | null>(null);
+
+  // ═══ NEW: Staking State ═══
+  const [stakedAmount, setStakedAmount] = useState(0);
+  const [stakeStartTime, setStakeStartTime] = useState(0);
+  const [pendingPower, setPendingPower] = useState(0);
+  const [totalClaimed, setTotalClaimed] = useState(0);
+  const [isStaking, setIsStaking] = useState(false);
+
+  // ═══ NEW: Share Card State ═══
+  const [showShareCard, setShowShareCard] = useState(false);
+  const [shareBattleData, setShareBattleData] = useState<BattleLog | null>(null);
+
   /* ─── localStorage ─── */
   useEffect(() => {
     const saved = localStorage.getItem("ritual_agents");
@@ -726,6 +805,113 @@ export default function RitualAgentArena() {
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     return `${Math.floor(diff / 3600000)}h ago`;
   };
+
+  // ═══ NEW: Win Probability Calculator ═══
+  const calculateWinProbability = (a: MintedAgent, b: MintedAgent) => {
+    if (isBossAgent(a.power)) return 99;
+    if (isBossAgent(b.power)) return 1;
+    const powerDiff = a.power - b.power;
+    const winBonus = (a.wins - b.wins) * 0.5;
+    const baseProb = 50 + powerDiff * 0.8 + winBonus;
+    return Math.max(5, Math.min(95, Math.round(baseProb)));
+  };
+
+  // ═══ NEW: Comparison helpers ═══
+  const openComparison = (agentA: MintedAgent, agentB: MintedAgent) => {
+    setCompareAgentA(agentA);
+    setCompareAgentB(agentB);
+    setShowComparison(true);
+    soundManager.compare();
+  };
+
+  // ═══ NEW: Staking Functions ═══
+  const fetchStakeInfo = async () => {
+    if (!contract || !account) return;
+    try {
+      const info = await contract.getStakeInfo(account);
+      setStakedAmount(Number(info.amount));
+      setStakeStartTime(Number(info.startTime));
+      setTotalClaimed(Number(info.totalClaimed));
+      setPendingPower(Number(info.pendingPower));
+    } catch (e) {
+      console.log('Could not fetch stake info:', e);
+    }
+  };
+
+  const handleStake = async () => {
+    if (!contract) return alert('Connect wallet first');
+    setIsStaking(true);
+    try {
+      const tx = await contract.stake({ value: ethers.parseEther('0.01') });
+      await tx.wait();
+      soundManager.stake();
+      await fetchStakeInfo();
+      alert('Staked 0.01 RITUAL! You will earn +10 power/day for your weakest agent.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Stake failed: ' + (err.reason || err.message));
+    }
+    setIsStaking(false);
+  };
+
+  const handleUnstake = async () => {
+    if (!contract) return;
+    setIsStaking(true);
+    try {
+      const tx = await contract.unstake();
+      await tx.wait();
+      soundManager.unstake();
+      await fetchStakeInfo();
+      alert('Unstaked! Power bonus removed. RITUAL returned to wallet.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Unstake failed: ' + (err.reason || err.message));
+    }
+    setIsStaking(false);
+  };
+
+  const handleClaimPower = async () => {
+    if (!contract) return;
+    try {
+      const tx = await contract.claimPower();
+      await tx.wait();
+      soundManager.powerup();
+      await fetchStakeInfo();
+      alert('Power claimed! Added to your weakest agent.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Claim failed: ' + (err.reason || err.message));
+    }
+  };
+
+  // ═══ NEW: Share Battle Card ═══
+  const openShareCard = (log: BattleLog) => {
+    setShareBattleData(log);
+    setShowShareCard(true);
+    soundManager.share();
+  };
+
+  const generateShareText = (log: BattleLog) => {
+    const emoji = log.winner === log.attacker ? '⚡' : '💀';
+    return `${emoji} RITUAL ARENA BATTLE\n\n${log.attacker} vs ${log.defender}\n🏆 Winner: ${log.winner}\n\n${log.txHash ? `⛓️ On-chain: ${RITUAL_EXPLORER}/tx/${log.txHash}` : ''}\n\nMint. Battle. Ascend.\n#RitualArena #AI`;
+  };
+
+  const shareToX = (log: BattleLog) => {
+    const text = encodeURIComponent(generateShareText(log));
+    window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
+  };
+
+  const shareToTelegram = (log: BattleLog) => {
+    const text = encodeURIComponent(generateShareText(log));
+    window.open(`https://t.me/share/url?url=${encodeURIComponent('https://ritual-agent-arena.vercel.app')}&text=${text}`, '_blank');
+  };
+
+  // Fetch stake info on wallet connect
+  useEffect(() => {
+    if (account && contract) {
+      fetchStakeInfo();
+    }
+  }, [account, contract]);
 
   /* ─── WALLET ─── */
   const connectWallet = async () => {
@@ -1013,6 +1199,9 @@ export default function RitualAgentArena() {
           >
             {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
           </motion.button>
+
+          {/* Staking button */}
+          {account && <StakingModal />}
 
           {account ? (
             <>
@@ -1311,9 +1500,25 @@ export default function RitualAgentArena() {
                           Battle <ChevronRight className="w-3 h-3" />
                         </motion.button>
                       ) : (
-                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-60 transition-opacity"
-                          style={{ color: 'rgba(255,255,255,0.3)' }}>
-                          <Lock className="w-3 h-3" />
+                        <div className="flex items-center gap-1">
+                          <motion.button
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ color: '#3B82F6', background: 'rgba(59,130,246,0.08)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const myAgent = myAgents[0] || mintedAgents[0];
+                              if (myAgent) openComparison(myAgent, agent);
+                            }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            Compare
+                          </motion.button>
+                          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium opacity-0 group-hover:opacity-60 transition-opacity"
+                            style={{ color: 'rgba(255,255,255,0.3)' }}
+                          >
+                            <Lock className="w-3 h-3" />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1389,7 +1594,7 @@ export default function RitualAgentArena() {
               battleLogs.slice(0, 10).map((log, i) => (
                 <motion.div
                   key={log.id}
-                  className="px-4 py-3"
+                  className="px-4 py-3 group"
                   style={{ borderBottom: i < Math.min(battleLogs.length, 10) - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}
                   initial={{ opacity: 0, x: 10 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -1423,6 +1628,15 @@ export default function RitualAgentArena() {
                         ⛓️ ON-CHAIN
                       </span>
                     )}
+                    <motion.button
+                      onClick={(e) => { e.stopPropagation(); openShareCard(log); }}
+                      className="ml-auto text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ color: '#60A5FA', background: 'rgba(59,130,246,0.08)' }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Share
+                    </motion.button>
                   </div>
                 </motion.div>
               ))
@@ -1941,7 +2155,7 @@ export default function RitualAgentArena() {
       >
         {/* Header row */}
         <div
-          className="grid grid-cols-[40px_44px_1fr_140px_80px_70px] items-center gap-3 px-5 py-2.5"
+          className="grid grid-cols-[40px_44px_1fr_140px_80px_70px_60px] items-center gap-3 px-5 py-2.5"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
           <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}>#</span>
@@ -1950,6 +2164,7 @@ export default function RitualAgentArena() {
           <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}>X Handle</span>
           <span className="text-[9px] font-medium tracking-[1.5px] uppercase" style={{ color: 'rgba(255,255,255,0.2)' }}>Power</span>
           <span className="text-[9px] font-medium tracking-[1.5px] uppercase text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>Wins</span>
+          <span className="text-[9px] font-medium tracking-[1.5px] uppercase text-right" style={{ color: 'rgba(255,255,255,0.2)' }}></span>
         </div>
 
         {paginatedAgents.length === 0 ? (
@@ -1964,7 +2179,7 @@ export default function RitualAgentArena() {
             return (
               <motion.div
                 key={agent.id}
-                className="grid grid-cols-[40px_44px_1fr_140px_80px_70px] items-center gap-3 px-5 py-3 group"
+                className="grid grid-cols-[40px_44px_1fr_140px_80px_70px_60px] items-center gap-3 px-5 py-3 group"
                 style={{
                   borderBottom: i < paginatedAgents.length - 1 ? '1px solid rgba(255,255,255,0.025)' : 'none',
                   background: isOwn ? 'rgba(16,185,129,0.02)' : 'transparent',
@@ -2004,6 +2219,23 @@ export default function RitualAgentArena() {
                     <Trophy className="w-3 h-3" style={{ color: '#F59E0B' }} />
                     <span className="text-sm font-semibold" style={{ color: '#f0f2f0' }}>{agent.wins}</span>
                   </div>
+                </div>
+                <div className="text-right">
+                  {!isOwn && account && (
+                    <motion.button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const myAgent = myAgents[0] || mintedAgents[0];
+                        if (myAgent) openComparison(myAgent, agent);
+                      }}
+                      className="text-[9px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ color: '#3B82F6', background: 'rgba(59,130,246,0.08)' }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Compare
+                    </motion.button>
+                  )}
                 </div>
               </motion.div>
             );
@@ -2247,7 +2479,7 @@ export default function RitualAgentArena() {
                   return (
                     <motion.div
                       key={b.id}
-                      className="flex items-center justify-between py-2.5 px-3 rounded-lg"
+                      className="flex items-center justify-between py-2.5 px-3 rounded-lg group"
                       style={{ background: isWin ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)' }}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -2271,6 +2503,15 @@ export default function RitualAgentArena() {
                       <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         {timeAgo(b.timestamp)}
                       </div>
+                      <motion.button
+                        onClick={(e) => { e.stopPropagation(); openShareCard(b); }}
+                        className="text-[8px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ color: '#60A5FA', background: 'rgba(59,130,246,0.08)' }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Share
+                      </motion.button>
                     </motion.div>
                   );
                 })}
@@ -2312,6 +2553,488 @@ export default function RitualAgentArena() {
       </div>
     </footer>
   );
+
+  /* ══════════════════════════════════════════════════════════════════
+     AGENT COMPARISON MODAL — Side-by-side stats + win probability
+     ══════════════════════════════════════════════════════════════════ */
+  const AgentComparisonModal = () => {
+    if (!showComparison || !compareAgentA || !compareAgentB) return null;
+    const probA = calculateWinProbability(compareAgentA, compareAgentB);
+    const probB = 100 - probA;
+    const powerDiff = compareAgentA.power - compareAgentB.power;
+
+    return (
+      <AnimatePresence>
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(16px)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setShowComparison(false)}
+        >
+          <motion.div
+            className="w-full max-w-2xl rounded-2xl relative overflow-hidden"
+            style={{
+              background: '#0a1210',
+              border: '1px solid rgba(16,185,129,0.12)',
+              boxShadow: '0 0 100px rgba(16,185,129,0.08)',
+            }}
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setShowComparison(false)}
+              className="absolute top-5 right-5 p-1.5 rounded-lg z-10 transition-colors"
+              style={{ color: 'rgba(255,255,255,0.25)' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header */}
+            <div className="p-8 pb-4 text-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <div className="text-[10px] font-medium tracking-[3px] mb-2" style={{ color: 'rgba(16,185,129,0.5)' }}>
+                AGENT COMPARISON
+              </div>
+              <h3 className="text-xl font-semibold tracking-tight" style={{ color: '#f0f2f0' }}>
+                Who Will Prevail?
+              </h3>
+            </div>
+
+            {/* Agents side by side */}
+            <div className="p-8">
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-6 items-start">
+                {/* Agent A */}
+                <div className="text-center">
+                  <motion.div
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold text-black mx-auto mb-3"
+                    style={{ background: getAgentAvatar(compareAgentA.name), boxShadow: `0 0 30px ${getAgentAvatar(compareAgentA.name)}25` }}
+                    animate={{ scale: [1, 1.03, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    {getInitials(compareAgentA.name)}
+                  </motion.div>
+                  <div className="text-sm font-semibold mb-1" style={{ color: '#f0f2f0' }}>{compareAgentA.name}</div>
+                  <div className="text-[11px] mb-3" style={{ color: 'rgba(52,211,153,0.6)' }}>@{compareAgentA.xHandle}</div>
+
+                  <div className="space-y-2">
+                    <div className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                      <div className="text-[9px] uppercase tracking-[1px] mb-1" style={{ color: 'rgba(255,255,255,0.25)' }}>Power</div>
+                      <div className="text-2xl font-bold" style={{ color: getPowerColor(compareAgentA.power) }}>{getPowerDisplay(compareAgentA.power)}</div>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                      <div className="text-[9px] uppercase tracking-[1px] mb-1" style={{ color: 'rgba(255,255,255,0.25)' }}>Wins</div>
+                      <div className="text-lg font-bold" style={{ color: '#F59E0B' }}>{compareAgentA.wins}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* VS + Probability */}
+                <div className="flex flex-col items-center gap-4 pt-8">
+                  <motion.div
+                    className="text-3xl font-bold"
+                    style={{ color: '#10B981' }}
+                    animate={{ scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    VS
+                  </motion.div>
+
+                  {/* Win Probability Bar */}
+                  <div className="w-24">
+                    <div className="text-[8px] uppercase tracking-[1px] text-center mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      Win Probability
+                    </div>
+                    <div className="space-y-1.5">
+                      <div>
+                        <div className="flex justify-between text-[9px] mb-0.5">
+                          <span style={{ color: '#10B981' }}>{probA}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: 'linear-gradient(90deg, #10B981, #34D399)' }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${probA}%` }}
+                            transition={{ duration: 1, delay: 0.3 }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[9px] mb-0.5">
+                          <span style={{ color: '#3B82F6' }}>{probB}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: 'linear-gradient(90deg, #3B82F6, #60A5FA)' }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${probB}%` }}
+                            transition={{ duration: 1, delay: 0.4 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Power difference */}
+                    <div className="mt-3 text-center">
+                      <div className="text-[8px] uppercase tracking-[1px] mb-1" style={{ color: 'rgba(255,255,255,0.2)' }}>Power Diff</div>
+                      <div className="text-sm font-bold" style={{ color: powerDiff > 0 ? '#10B981' : powerDiff < 0 ? '#3B82F6' : '#F59E0B' }}>
+                        {powerDiff > 0 ? '+' : ''}{powerDiff}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Agent B */}
+                <div className="text-center">
+                  <motion.div
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold text-black mx-auto mb-3"
+                    style={{ background: getAgentAvatar(compareAgentB.name), boxShadow: `0 0 30px ${getAgentAvatar(compareAgentB.name)}25` }}
+                    animate={{ scale: [1, 1.03, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+                  >
+                    {getInitials(compareAgentB.name)}
+                  </motion.div>
+                  <div className="text-sm font-semibold mb-1" style={{ color: '#f0f2f0' }}>{compareAgentB.name}</div>
+                  <div className="text-[11px] mb-3" style={{ color: 'rgba(52,211,153,0.6)' }}>@{compareAgentB.xHandle}</div>
+
+                  <div className="space-y-2">
+                    <div className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                      <div className="text-[9px] uppercase tracking-[1px] mb-1" style={{ color: 'rgba(255,255,255,0.25)' }}>Power</div>
+                      <div className="text-2xl font-bold" style={{ color: getPowerColor(compareAgentB.power) }}>{getPowerDisplay(compareAgentB.power)}</div>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                      <div className="text-[9px] uppercase tracking-[1px] mb-1" style={{ color: 'rgba(255,255,255,0.25)' }}>Wins</div>
+                      <div className="text-lg font-bold" style={{ color: '#F59E0B' }}>{compareAgentB.wins}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Verdict */}
+              <motion.div
+                className="mt-6 text-center py-3 rounded-xl"
+                style={{
+                  background: probA > probB
+                    ? 'rgba(16,185,129,0.06)'
+                    : probA < probB
+                    ? 'rgba(59,130,246,0.06)'
+                    : 'rgba(245,158,11,0.06)',
+                  border: `1px solid ${probA > probB ? 'rgba(16,185,129,0.12)' : probA < probB ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)'}`,
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  {probA > probB + 20
+                    ? `${compareAgentA.name} is heavily favored`
+                    : probA > probB
+                    ? `${compareAgentA.name} has a slight edge`
+                    : probB > probA + 20
+                    ? `${compareAgentB.name} is heavily favored`
+                    : probB > probA
+                    ? `${compareAgentB.name} has a slight edge`
+                    : 'Evenly matched — could go either way'}
+                </span>
+              </motion.div>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  };
+
+  /* ══════════════════════════════════════════════════════════════════
+     SHARE BATTLE CARD MODAL — Generate shareable battle image
+     ══════════════════════════════════════════════════════════════════ */
+  const ShareBattleCardModal = () => {
+    if (!showShareCard || !shareBattleData) return null;
+    const log = shareBattleData;
+    const isWin = log.winner === log.attacker;
+    const attackerAgent = mintedAgents.find(a => a.name === log.attacker);
+    const defenderAgent = mintedAgents.find(a => a.name === log.defender);
+
+    return (
+      <AnimatePresence>
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(16px)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setShowShareCard(false)}
+        >
+          <motion.div
+            className="w-full max-w-md rounded-2xl relative overflow-hidden"
+            style={{
+              background: '#0a1210',
+              border: '1px solid rgba(16,185,129,0.12)',
+              boxShadow: '0 0 80px rgba(16,185,129,0.08)',
+            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowShareCard(false)}
+              className="absolute top-5 right-5 p-1.5 rounded-lg z-10"
+              style={{ color: 'rgba(255,255,255,0.25)' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Battle Card Visual */}
+            <div id="battle-card" className="p-6" style={{ background: 'linear-gradient(180deg, #0a1210 0%, #060d09 100%)' }}>
+              <div className="text-center mb-4">
+                <div className="text-[9px] font-medium tracking-[3px] mb-2" style={{ color: 'rgba(16,185,129,0.5)' }}>
+                  RITUAL ARENA
+                </div>
+                <div className="text-2xl font-bold tracking-tight" style={{ color: '#f0f2f0' }}>
+                  {isWin ? '⚡ VICTORY' : '💀 DEFEAT'}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-6 mb-4">
+                <div className="text-center">
+                  <div
+                    className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-black mx-auto mb-2"
+                    style={{ background: attackerAgent ? getAgentAvatar(attackerAgent.name) : '#10B981' }}
+                  >
+                    {attackerAgent ? getInitials(attackerAgent.name) : '?'}
+                  </div>
+                  <div className="text-xs font-semibold" style={{ color: '#f0f2f0' }}>{log.attacker}</div>
+                  {attackerAgent && <div className="text-[10px]" style={{ color: getPowerColor(attackerAgent.power) }}>PWR {attackerAgent.power}</div>}
+                </div>
+
+                <div className="text-2xl font-bold" style={{ color: '#10B981' }}>VS</div>
+
+                <div className="text-center">
+                  <div
+                    className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-black mx-auto mb-2"
+                    style={{ background: defenderAgent ? getAgentAvatar(defenderAgent.name) : '#3B82F6' }}
+                  >
+                    {defenderAgent ? getInitials(defenderAgent.name) : '?'}
+                  </div>
+                  <div className="text-xs font-semibold" style={{ color: '#f0f2f0' }}>{log.defender}</div>
+                  {defenderAgent && <div className="text-[10px]" style={{ color: getPowerColor(defenderAgent.power) }}>PWR {defenderAgent.power}</div>}
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-sm font-bold mb-1" style={{ color: isWin ? '#10B981' : '#EF4444' }}>
+                  🏆 {log.winner} wins!
+                </div>
+                {log.txHash && (
+                  <div className="text-[9px] font-mono" style={{ color: 'rgba(16,185,129,0.5)' }}>
+                    ⛓️ On-chain: {log.txHash.slice(0, 10)}...{log.txHash.slice(-6)}
+                  </div>
+                )}
+                <div className="text-[9px] mt-1" style={{ color: 'rgba(255,255,255,0.15)' }}>
+                  {new Date(log.timestamp).toLocaleString()}
+                </div>
+              </div>
+
+              {/* Branding */}
+              <div className="text-center mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                <span className="text-[10px] font-semibold" style={{ color: '#10B981' }}>Ritual Agent Arena</span>
+                <span className="text-[9px] ml-2" style={{ color: 'rgba(255,255,255,0.15)' }}>Chain 1979</span>
+              </div>
+            </div>
+
+            {/* Share buttons */}
+            <div className="p-4 flex gap-3">
+              <motion.button
+                onClick={() => shareToX(log)}
+                className="flex-1 py-3 rounded-xl text-xs font-bold text-black flex items-center justify-center gap-2"
+                style={{ background: '#f0f2f0' }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="#000">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                Share on X
+              </motion.button>
+              <motion.button
+                onClick={() => shareToTelegram(log)}
+                className="flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+                style={{ background: 'rgba(59,130,246,0.15)', color: '#60A5FA', border: '1px solid rgba(59,130,246,0.2)' }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Share on Telegram
+              </motion.button>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  };
+
+  /* ══════════════════════════════════════════════════════════════════
+     STAKING MODAL — Stake RITUAL for power boost
+     ══════════════════════════════════════════════════════════════════ */
+  const StakingModal = () => {
+    const [showStakingModal, setShowStakingModalLocal] = useState(false);
+    const isStaked = stakedAmount > 0;
+    const dailyRate = Math.min(Math.floor(stakedAmount / (0.01 * 1e18)) * 10, 100) || 10;
+
+    return (
+      <>
+        <motion.button
+          onClick={() => setShowStakingModalLocal(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium"
+          style={{
+            background: isStaked ? 'rgba(168,85,247,0.1)' : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${isStaked ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.06)'}`,
+            color: isStaked ? '#A855F7' : 'rgba(255,255,255,0.4)',
+          }}
+          whileHover={{ scale: 1.02, borderColor: 'rgba(168,85,247,0.3)' }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Star className="w-3.5 h-3.5" />
+          {isStaked ? `Staked ${(stakedAmount / 1e18).toFixed(2)} RITUAL` : 'Stake RITUAL'}
+        </motion.button>
+
+        <AnimatePresence>
+          {showStakingModal && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(16px)' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowStakingModalLocal(false)}
+            >
+              <motion.div
+                className="w-full max-w-md rounded-2xl relative overflow-hidden"
+                style={{
+                  background: '#0a1210',
+                  border: '1px solid rgba(168,85,247,0.12)',
+                  boxShadow: '0 0 80px rgba(168,85,247,0.08)',
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setShowStakingModalLocal(false)}
+                  className="absolute top-5 right-5 p-1.5 rounded-lg z-10"
+                  style={{ color: 'rgba(255,255,255,0.25)' }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="p-8">
+                  <div className="text-center mb-6">
+                    <motion.div
+                      className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                      style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)' }}
+                      animate={{ boxShadow: ['0 0 20px rgba(168,85,247,0.1)', '0 0 40px rgba(168,85,247,0.25)', '0 0 20px rgba(168,85,247,0.1)'] }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                    >
+                      <Star className="w-7 h-7" style={{ color: '#A855F7' }} />
+                    </motion.div>
+                    <h3 className="text-2xl font-bold tracking-tight" style={{ color: '#f0f2f0' }}>Stake RITUAL</h3>
+                    <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      Earn daily power for your agents
+                    </p>
+                  </div>
+
+                  {/* Current stake info */}
+                  {isStaked && (
+                    <div className="rounded-xl p-4 mb-4 space-y-3" style={{ background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.1)' }}>
+                      <div className="flex justify-between">
+                        <span className="text-[10px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Staked</span>
+                        <span className="text-sm font-bold" style={{ color: '#A855F7' }}>{(stakedAmount / 1e18).toFixed(2)} RITUAL</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[10px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Daily Rate</span>
+                        <span className="text-sm font-bold" style={{ color: '#10B981' }}>+{dailyRate} power/day</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[10px] uppercase tracking-[1px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Total Claimed</span>
+                        <span className="text-sm font-bold" style={{ color: '#F59E0B' }}>{totalClaimed} power</span>
+                      </div>
+                      {pendingPower > 0 && (
+                        <motion.button
+                          onClick={handleClaimPower}
+                          className="w-full py-2.5 rounded-xl text-xs font-bold text-black"
+                          style={{ background: 'linear-gradient(135deg, #A855F7, #7C3AED)' }}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                        >
+                          ⚡ Claim {pendingPower} Pending Power
+                        </motion.button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* How it works */}
+                  <div className="rounded-xl p-4 mb-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div className="text-[10px] font-medium tracking-[2px] uppercase mb-3" style={{ color: 'rgba(255,255,255,0.3)' }}>How It Works</div>
+                    <div className="space-y-2 text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      <div>• Stake RITUAL tokens to earn passive power</div>
+                      <div>• +10 power/day per 0.01 RITUAL staked (max 100/day)</div>
+                      <div>• Power goes to your weakest agent automatically</div>
+                      <div>• Unstake anytime — RITUAL returned to wallet</div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-3">
+                    {!isStaked ? (
+                      <motion.button
+                        onClick={() => { handleStake(); setShowStakingModalLocal(false); }}
+                        disabled={isStaking}
+                        className="flex-1 py-3.5 rounded-xl text-sm font-bold text-black"
+                        style={{ background: 'linear-gradient(135deg, #A855F7, #7C3AED)', boxShadow: '0 0 20px rgba(168,85,247,0.15)' }}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                      >
+                        {isStaking ? 'Staking...' : 'Stake 0.01 RITUAL'}
+                      </motion.button>
+                    ) : (
+                      <>
+                        <motion.button
+                          onClick={() => { handleStake(); setShowStakingModalLocal(false); }}
+                          disabled={isStaking}
+                          className="flex-1 py-3 rounded-xl text-xs font-bold"
+                          style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)', color: '#A855F7' }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          Add More
+                        </motion.button>
+                        <motion.button
+                          onClick={() => { handleUnstake(); setShowStakingModalLocal(false); }}
+                          disabled={isStaking}
+                          className="flex-1 py-3 rounded-xl text-xs font-bold"
+                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#EF4444' }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          Unstake All
+                        </motion.button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
+    );
+  };
 
   /* ══════════════════════════════════════════════════════════════════
      MINT MODAL
@@ -2448,6 +3171,8 @@ export default function RitualAgentArena() {
       <MouseSpotlight />
       <ConfettiExplosion active={showConfetti} />
       <Navbar />
+      <AgentComparisonModal />
+      <ShareBattleCardModal />
 
       <AnimatePresence mode="wait">
         {activeView === 'dashboard' && <DashboardView key="dashboard" />}
